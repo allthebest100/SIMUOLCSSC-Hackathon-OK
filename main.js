@@ -1,16 +1,40 @@
-// Game configurations
-const games = {
-    physical: [
-        { id: 'run', name: "Runner's Challenge", description: "Complete running exercises" },
-        { id: 'squat', name: "Squat Jumper", description: "Perfect your squat jumps" },
-        { id: 'swim', name: "Lane Swimmer", description: "Swimming exercises" }
-    ],
-    mental: [
-        { id: '2048', name: "2048 Challenge", description: "Train your strategic thinking" },
-        { id: 'color', name: "Color Match", description: "Test your pattern recognition" },
-        { id: 'memory', name: "Memory Tiles", description: "Enhance your memory skills" }
-    ]
+// Game state
+let currentGame = null;
+let gameState = {
+    currentTheme: null,
+    level: 1,
+    score: 0,
+    unlockedGames: {
+        physical: ['run'],
+        mental: ['puzzle2048']
+    }
 };
+
+// Initialize game when page loads
+document.addEventListener('DOMContentLoaded', () => {
+    loadSavedState();
+    updateStats();
+    showWelcome();
+});
+
+// Load saved game state from localStorage
+function loadSavedState() {
+    const savedState = localStorage.getItem('gameState');
+    if (savedState) {
+        gameState = JSON.parse(savedState);
+    }
+}
+
+// Save game state to localStorage
+function saveGameState() {
+    localStorage.setItem('gameState', JSON.stringify(gameState));
+}
+
+// Update stats display
+function updateStats() {
+    document.getElementById('player-level').textContent = gameState.level;
+    document.getElementById('player-score').textContent = gameState.score;
+}
 
 // Show welcome screen
 function showWelcome() {
@@ -18,58 +42,192 @@ function showWelcome() {
     document.getElementById('welcome-screen').classList.add('active');
 }
 
-// Show games list
-function showGames(category) {
+// Select path (Physical or Mental)
+function selectPath(path) {
+    gameState.currentTheme = path;
     hideAllScreens();
-    const gamesScreen = document.getElementById('games-screen');
-    const gamesList = document.getElementById('games-list');
-    const categoryTitle = document.getElementById('category-title');
-    
-    // Set title
-    categoryTitle.textContent = category === 'physical' ? 'Physical Fitness Games' : 'Mental Health Games';
-    
-    // Clear and populate games list
-    gamesList.innerHTML = '';
-    games[category].forEach(game => {
-        const button = document.createElement('button');
-        button.className = 'game-button';
-        button.onclick = () => startGame(game);
-        button.innerHTML = `
+    document.getElementById('game-selection').classList.add('active');
+    loadGames(path);
+    playSound('NewLevelSound');
+}
+
+// Load games for selected path
+function loadGames(path) {
+    const games = path === 'physical' ? physicalGames : mentalGames;
+    const gamesGrid = document.getElementById('games-grid');
+
+    gamesGrid.innerHTML = Object.entries(games).map(([id, game]) => `
+        <div class="game-card ${gameState.unlockedGames[path].includes(id) ? '' : 'locked'}">
+            <div class="game-icon">${game.icon}</div>
             <h3>${game.name}</h3>
             <p>${game.description}</p>
-        `;
-        gamesList.appendChild(button);
+            ${gameState.unlockedGames[path].includes(id) ? 
+                `<button onclick="startGame('${id}')" class="game-button">Play Now</button>` :
+                `<div class="locked-overlay">
+                    <i class="fas fa-lock"></i>
+                    <span>Unlock at Level ${game.unlockLevel}</span>
+                </div>`
+            }
+        </div>
+    `).join('');
+}
+
+// Start selected game
+function startGame(gameId) {
+    if (!isGameUnlocked(gameId)) {
+        playSound('FailSound');
+        return;
+    }
+
+    // Clean up previous game if exists
+    if (currentGame && typeof currentGame.cleanup === 'function') {
+        currentGame.cleanup();
+    }
+
+    // Clear game container
+    const gameContainer = document.getElementById('active-game-container');
+    gameContainer.innerHTML = '';
+
+    hideAllScreens();
+    document.getElementById('game-screen').classList.add('active');
+
+    if (gameState.currentTheme === 'physical') {
+        startPhysicalGame(gameId);
+    } else {
+        startMentalGame(gameId);
+    }
+}
+
+// Check if game is unlocked
+function isGameUnlocked(gameId) {
+    return gameState.unlockedGames[gameState.currentTheme].includes(gameId);
+}
+
+// Return to selection screen
+function returnToSelection() {
+    if (currentGame && typeof currentGame.cleanup === 'function') {
+        currentGame.cleanup();
+        currentGame = null;
+    }
+    hideAllScreens();
+    document.getElementById('game-selection').classList.add('active');
+}
+
+// Retry current game
+function retryGame() {
+    if (currentGame && typeof currentGame.cleanup === 'function') {
+        currentGame.cleanup();
+    }
+    startGame(currentGame.constructor.name.toLowerCase());
+}
+
+// Update score and check for level up
+function updateScore(points) {
+    gameState.score += points;
+    updateStats();
+    saveGameState();
+    
+    // Check for level up
+    const newLevel = Math.floor(gameState.score / 1000) + 1;
+    if (newLevel > gameState.level) {
+        levelUp(newLevel);
+    } else {
+        returnToSelection();
+    }
+}
+
+// Handle level up
+function levelUp(newLevel) {
+    gameState.level = newLevel;
+    playSound('LevelUpSound');
+    
+    // Check for new unlocks
+    const newUnlocks = checkUnlocks();
+    showLevelUpModal(newUnlocks);
+    saveGameState();
+}
+
+// Check for new game unlocks
+function checkUnlocks() {
+    const newUnlocks = [];
+    const games = gameState.currentTheme === 'physical' ? physicalGames : mentalGames;
+    
+    Object.entries(games).forEach(([id, game]) => {
+        if (game.unlockLevel === gameState.level && 
+            !gameState.unlockedGames[gameState.currentTheme].includes(id)) {
+            gameState.unlockedGames[gameState.currentTheme].push(id);
+            newUnlocks.push(game.name);
+        }
     });
     
-    gamesScreen.classList.add('active');
+    return newUnlocks;
 }
 
-// Start specific game
-function startGame(game) {
-    hideAllScreens();
-    const gameScreen = document.getElementById('game-screen');
-    const gameTitle = document.getElementById('game-title');
-    const gameArea = document.getElementById('game-area');
+// Show level up modal
+function showLevelUpModal(unlockedGames) {
+    const modal = document.getElementById('level-up-modal');
+    const newLevelSpan = document.getElementById('new-level');
+    const unlockedContent = document.getElementById('unlocked-content');
     
-    gameTitle.textContent = game.name;
-    gameArea.innerHTML = `<p>This is the ${game.name} game area.</p>`;
+    newLevelSpan.textContent = gameState.level;
+    unlockedContent.innerHTML = unlockedGames.length ? `
+        <h3>New Games Unlocked!</h3>
+        <ul>
+            ${unlockedGames.map(game => `<li>${game}</li>`).join('')}
+        </ul>
+    ` : '';
     
-    gameScreen.classList.add('active');
+    modal.classList.add('active');
 }
 
-// Back to games list
-function backToGames() {
-    const currentCategory = games.physical.some(g => g.name === document.getElementById('game-title').textContent) 
-        ? 'physical' : 'mental';
-    showGames(currentCategory);
+// Close modal
+function closeModal(modalId) {
+    document.getElementById(modalId).classList.remove('active');
+    returnToSelection();
 }
 
-// Utility function to hide all screens
+// Hide all screens
 function hideAllScreens() {
     document.querySelectorAll('.screen').forEach(screen => {
         screen.classList.remove('active');
     });
 }
 
-// Initialize
-document.addEventListener('DOMContentLoaded', showWelcome);
+// Play sound function
+function playSound(soundId) {
+    const sound = document.getElementById(soundId);
+    if (sound) {
+        sound.play();
+    }
+}
+
+// Debug function
+function debugGameState() {
+    console.log('Current Game State:', {
+        theme: gameState.currentTheme,
+        level: gameState.level,
+        score: gameState.score,
+        unlockedGames: gameState.unlockedGames
+    });
+}
+
+// Reset game state (for testing)
+function resetGame() {
+    gameState = {
+        currentTheme: null,
+        level: 1,
+        score: 0,
+        unlockedGames: {
+            physical: ['run'],
+            mental: ['puzzle2048']
+        }
+    };
+    saveGameState();
+    updateStats();
+    showWelcome();
+}
+
+// Add this to handle browser refresh/close
+window.addEventListener('beforeunload', () => {
+    saveGameState();
+});

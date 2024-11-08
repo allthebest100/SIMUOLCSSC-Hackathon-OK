@@ -1,4 +1,4 @@
-// Mental Health Games Configuration
+// Mental Games Configuration
 const mentalGames = {
     puzzle2048: {
         id: 'puzzle2048',
@@ -8,7 +8,7 @@ const mentalGames = {
         unlockLevel: 1,
         levels: [
             { target: 256, moves: 50, points: 100, name: "Beginner 2048" },
-            { target: 512, moves: 100, points: 200, name: "Intermediate 2048" },
+            { target: 512, moves: 100, points: 200, name: "Advanced 2048" },
             { target: 2048, moves: 200, points: 300, name: "Master 2048" }
         ]
     },
@@ -38,7 +38,29 @@ const mentalGames = {
     }
 };
 
-// 2048 Game Class
+// Start Mental Game
+function startMentalGame(gameId) {
+    const gameContainer = document.getElementById('active-game-container');
+    const game = mentalGames[gameId];
+    
+    switch(gameId) {
+        case 'puzzle2048':
+            currentGame = new Game2048(1);
+            break;
+        case 'colorMatch':
+            currentGame = new ColorMatch(1);
+            break;
+        case 'memoryTiles':
+            currentGame = new MemoryTiles(1);
+            break;
+    }
+    
+    if (currentGame) {
+        currentGame.initialize();
+    }
+}
+
+// 2048 Game
 class Game2048 {
     constructor(level) {
         this.level = level;
@@ -59,69 +81,86 @@ class Game2048 {
     }
 
     renderUI() {
-        const container = document.getElementById('game-container');
+        const container = document.getElementById('active-game-container');
         container.innerHTML = `
             <div class="game-2048">
                 <div class="game-header">
-                    <div class="game-info">
-                        <div class="score">Score: <span id="current-score">0</span></div>
-                        <div class="moves">Moves: <span id="moves-left">${this.levelData.moves}</span></div>
-                        <div class="target">Target: ${this.levelData.target}</div>
+                    <h2>${this.levelData.name}</h2>
+                    <div class="game-stats">
+                        <div class="stat">
+                            <i class="fas fa-star"></i>
+                            Score: <span id="current-score">0</span>
+                        </div>
+                        <div class="stat">
+                            <i class="fas fa-arrows-alt"></i>
+                            Moves: <span id="moves-left">${this.levelData.moves}</span>
+                        </div>
+                        <div class="stat">
+                            <i class="fas fa-bullseye"></i>
+                            Target: ${this.levelData.target}
+                        </div>
                     </div>
                 </div>
-                <div class="game-grid" id="game-grid">
+                
+                <div class="game-grid">
                     ${this.createGridHTML()}
                 </div>
-                <div class="game-controls">
-                    <p>Use arrow keys to move tiles</p>
-                    <button id="restart-btn" class="secondary-btn">Restart</button>
+
+                <div class="controls">
+                    <button id="restart-btn" class="game-button">Restart</button>
+                    <div class="instructions">
+                        <p>Use arrow keys to move tiles</p>
+                        <p>Combine same numbers to reach ${this.levelData.target}</p>
+                    </div>
                 </div>
             </div>
         `;
 
         this.updateGrid();
-    }
-
-    createGridHTML() {
-        return Array(4).fill().map(() => 
-            `<div class="grid-row">
-                ${Array(4).fill('<div class="grid-cell"></div>').join('')}
-            </div>`
-        ).join('');
-    }
-
-    bindEvents() {
-        document.addEventListener('keydown', (e) => this.handleKeyPress(e));
         document.getElementById('restart-btn').addEventListener('click', () => this.restart());
     }
 
-    handleKeyPress(event) {
-        if (!this.isActive) return;
+    createGridHTML() {
+        return Array(4).fill()
+            .map(() => `
+                <div class="grid-row">
+                    ${Array(4).fill('<div class="grid-cell"></div>').join('')}
+                </div>
+            `).join('');
+    }
 
-        let moved = false;
-        switch(event.key) {
-            case 'ArrowUp':
-                moved = this.move('up');
-                break;
-            case 'ArrowDown':
-                moved = this.move('down');
-                break;
-            case 'ArrowLeft':
-                moved = this.move('left');
-                break;
-            case 'ArrowRight':
-                moved = this.move('right');
-                break;
-            default:
-                return;
-        }
+    bindEvents() {
+        this.handleKeyPress = (e) => {
+            if (!this.isActive) return;
 
-        if (moved) {
-            this.moves++;
-            this.addNewTile();
-            this.updateGrid();
-            this.checkGameStatus();
-        }
+            let moved = false;
+            switch(e.key) {
+                case 'ArrowUp':
+                    moved = this.move('up');
+                    break;
+                case 'ArrowDown':
+                    moved = this.move('down');
+                    break;
+                case 'ArrowLeft':
+                    moved = this.move('left');
+                    break;
+                case 'ArrowRight':
+                    moved = this.move('right');
+                    break;
+                default:
+                    return;
+            }
+
+            if (moved) {
+                this.moves++;
+                this.addNewTile();
+                this.updateGrid();
+                this.checkGameStatus();
+            }
+        };
+
+        document.addEventListener('keydown', this.handleKeyPress);
+        this.isActive = true;
     }
 
     move(direction) {
@@ -152,18 +191,19 @@ class Game2048 {
 
     moveHorizontal(grid, left) {
         let moved = false;
+        
         for (let i = 0; i < 4; i++) {
-            const row = grid[i].filter(cell => cell !== 0);
-            const merged = [];
-            
+            let row = grid[i].filter(cell => cell !== 0);
+            let merged = [];
+
             if (left) {
                 for (let j = 0; j < row.length - 1; j++) {
                     if (row[j] === row[j + 1] && !merged.includes(j)) {
                         row[j] *= 2;
-                        row.splice(j + 1, 1);
-                        merged.push(j);
                         this.score += row[j];
                         this.highestTile = Math.max(this.highestTile, row[j]);
+                        row.splice(j + 1, 1);
+                        merged.push(j);
                         moved = true;
                     }
                 }
@@ -172,16 +212,16 @@ class Game2048 {
                 for (let j = row.length - 1; j > 0; j--) {
                     if (row[j] === row[j - 1] && !merged.includes(j)) {
                         row[j] *= 2;
-                        row.splice(j - 1, 1);
-                        merged.push(j);
                         this.score += row[j];
                         this.highestTile = Math.max(this.highestTile, row[j]);
+                        row.splice(j - 1, 1);
+                        merged.push(j);
                         moved = true;
                     }
                 }
                 while (row.length < 4) row.unshift(0);
             }
-            
+
             if (JSON.stringify(grid[i]) !== JSON.stringify(row)) {
                 moved = true;
                 grid[i] = row;
@@ -192,18 +232,19 @@ class Game2048 {
 
     moveVertical(grid, up) {
         let moved = false;
+        
         for (let j = 0; j < 4; j++) {
             let column = grid.map(row => row[j]).filter(cell => cell !== 0);
-            const merged = [];
-            
+            let merged = [];
+
             if (up) {
                 for (let i = 0; i < column.length - 1; i++) {
                     if (column[i] === column[i + 1] && !merged.includes(i)) {
                         column[i] *= 2;
-                        column.splice(i + 1, 1);
-                        merged.push(i);
                         this.score += column[i];
                         this.highestTile = Math.max(this.highestTile, column[i]);
+                        column.splice(i + 1, 1);
+                        merged.push(i);
                         moved = true;
                     }
                 }
@@ -212,16 +253,16 @@ class Game2048 {
                 for (let i = column.length - 1; i > 0; i--) {
                     if (column[i] === column[i - 1] && !merged.includes(i)) {
                         column[i] *= 2;
-                        column.splice(i - 1, 1);
-                        merged.push(i);
                         this.score += column[i];
                         this.highestTile = Math.max(this.highestTile, column[i]);
+                        column.splice(i - 1, 1);
+                        merged.push(i);
                         moved = true;
                     }
                 }
                 while (column.length < 4) column.unshift(0);
             }
-            
+
             if (moved) {
                 for (let i = 0; i < 4; i++) {
                     grid[i][j] = column[i];
@@ -248,18 +289,22 @@ class Game2048 {
     }
 
     updateGrid() {
-        const gridElement = document.getElementById('game-grid');
-        gridElement.innerHTML = this.grid.map(row => 
-            `<div class="grid-row">
-                ${row.map(cell => 
-                    `<div class="grid-cell tile-${cell}">${cell || ''}</div>`
-                ).join('')}
-            </div>`
-        ).join('');
+        const gridElement = document.querySelector('.game-grid');
+        for (let i = 0; i < 4; i++) {
+            for (let j = 0; j < 4; j++) {
+                const cell = gridElement.children[i].children[j];
+                const value = this.grid[i][j];
+                cell.textContent = value || '';
+                cell.className = `grid-cell tile-${value}`;
+                if (value) {
+                    cell.classList.add('tile-pop');
+                    setTimeout(() => cell.classList.remove('tile-pop'), 300);
+                }
+            }
+        }
 
         document.getElementById('current-score').textContent = this.score;
-        document.getElementById('moves-left').textContent = 
-            this.levelData.moves - this.moves;
+        document.getElementById('moves-left').textContent = this.levelData.moves - this.moves;
     }
 
     checkGameStatus() {
@@ -288,10 +333,10 @@ class Game2048 {
         for (let i = 0; i < 4; i++) {
             for (let j = 0; j < 4; j++) {
                 const current = this.grid[i][j];
-                // Check right
-                if (j < 3 && current === this.grid[i][j + 1]) return true;
-                // Check down
-                if (i < 3 && current === this.grid[i + 1][j]) return true;
+                if ((j < 3 && current === this.grid[i][j + 1]) ||
+                    (i < 3 && current === this.grid[i + 1][j])) {
+                    return true;
+                }
             }
         }
         return false;
@@ -299,7 +344,7 @@ class Game2048 {
 
     completeGame() {
         this.isActive = false;
-        const moveBonus = Math.max(0, this.levelData.moves - this.moves);
+        const moveBonus = Math.max(0, this.levelData.moves - this.moves) * 5;
         const totalPoints = this.levelData.points + moveBonus;
         
         playSound('success');
@@ -309,7 +354,7 @@ class Game2048 {
     failGame() {
         this.isActive = false;
         playSound('fail');
-        this.showFailureDialog();
+        this.showFailDialog();
     }
 
     showCompletionDialog(totalPoints, moveBonus) {
@@ -319,39 +364,39 @@ class Game2048 {
             <div class="dialog-content">
                 <h2>Level Complete! 🎉</h2>
                 <div class="stats-summary">
-                    <div class="stat">Highest Tile: ${this.highestTile}</div>
-                    <div class="stat">Moves Used: ${this.moves}</div>
-                    <div class="stat">Score: ${this.score}</div>
+                    <p>Highest Tile: ${this.highestTile}</p>
+                    <p>Moves Used: ${this.moves}</p>
+                    <p>Score: ${this.score}</p>
                 </div>
                 <div class="points-breakdown">
-                    <div class="point-item">Base Points: ${this.levelData.points}</div>
-                    <div class="point-item">Move Bonus: +${moveBonus}</div>
-                    <div class="total-points">Total Points: ${totalPoints}</div>
+                    <p>Base Points: ${this.levelData.points}</p>
+                    <p>Move Bonus: +${moveBonus}</p>
+                    <p class="total-points">Total Points: ${totalPoints}</p>
                 </div>
-                <button onclick="gameManager.completeGame(${totalPoints})" class="primary-btn">Continue</button>
+                <button onclick="updateScore(${totalPoints})" class="game-button">Continue</button>
             </div>
         `;
-        document.getElementById('game-container').appendChild(dialog);
+        document.getElementById('active-game-container').appendChild(dialog);
     }
 
-    showFailureDialog() {
+    showFailDialog() {
         const dialog = document.createElement('div');
         dialog.className = 'completion-dialog failure';
         dialog.innerHTML = `
             <div class="dialog-content">
                 <h2>Game Over!</h2>
                 <div class="stats-summary">
-                    <div class="stat">Highest Tile: ${this.highestTile}</div>
-                    <div class="stat">Target: ${this.levelData.target}</div>
-                    <div class="stat">Score: ${this.score}</div>
+                    <p>Highest Tile: ${this.highestTile}</p>
+                    <p>Target: ${this.levelData.target}</p>
+                    <p>Score: ${this.score}</p>
                 </div>
                 <div class="action-buttons">
-                    <button onclick="gameManager.retryGame()" class="primary-btn">Try Again</button>
-                    <button onclick="gameManager.exitGame()" class="secondary-btn">Exit</button>
+                    <button onclick="retryGame()" class="game-button">Try Again</button>
+                    <button onclick="returnToSelection()" class="game-button secondary">Exit</button>
                 </div>
             </div>
         `;
-        document.getElementById('game-container').appendChild(dialog);
+        document.getElementById('active-game-container').appendChild(dialog);
     }
 
     restart() {
@@ -368,7 +413,7 @@ class Game2048 {
     }
 }
 
-// ColorMatch Game Class
+// Color Match Game
 class ColorMatch {
     constructor(level) {
         this.level = level;
@@ -381,35 +426,52 @@ class ColorMatch {
         this.playerSequence = [];
         this.isActive = false;
         this.score = 0;
+        this.timeLeft = this.levelData.time;
     }
 
     initialize() {
-        this.remainingTime = this.levelData.time;
         this.renderUI();
         this.bindEvents();
         playSound('newLevel');
     }
 
     renderUI() {
-        const container = document.getElementById('game-container');
+        const container = document.getElementById('active-game-container');
         container.innerHTML = `
             <div class="color-match-game">
                 <div class="game-header">
-                    <div class="time-display">Time: <span id="time-left">${this.remainingTime}</span>s</div>
-                    <div class="score-display">Score: <span id="current-score">${this.score}</span></div>
-                </div>
-                
-                <div class="pattern-display" id="pattern-display"></div>
-                
-                <div class="color-buttons" id="color-buttons">
-                    ${this.colors.map((color, index) => `
-                        <button class="color-btn" style="background-color: ${color}"
-                            data-color="${index}"></button>
-                    `).join('')}
+                    <h2>${this.levelData.name}</h2>
+                    <div class="game-stats">
+                        <div class="stat">
+                            <i class="fas fa-clock"></i>
+                            Time: <span id="time-left">${this.timeLeft}</span>s
+                        </div>
+                        <div class="stat">
+                            <i class="fas fa-star"></i>
+                            Score: <span id="current-score">${this.score}</span>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="game-controls">
-                    <button id="start-btn" class="primary-btn">Start Round</button>
+                <div class="game-area">
+                    <div id="pattern-display" class="pattern-display"></div>
+                    <div id="color-buttons" class="color-buttons">
+                        ${this.colors.map((color, index) => `
+                            <button 
+                                class="color-btn" 
+                                data-color="${index}"
+                                style="background-color: ${color}">
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <div class="controls">
+                    <button id="start-btn" class="game-button">Start Round</button>
+                    <div class="instructions">
+                        <p>Watch the pattern and repeat it</p>
+                        <p>Pattern length increases with each success</p>
+                    </div>
                 </div>
             </div>
         `;
@@ -428,23 +490,24 @@ class ColorMatch {
 
     startRound() {
         this.isActive = true;
+        document.getElementById('start-btn').style.display = 'none';
+        
         this.generateSequence();
         this.showSequence();
-        document.getElementById('start-btn').style.display = 'none';
         
         // Start timer
         this.timer = setInterval(() => {
-            this.remainingTime--;
-            document.getElementById('time-left').textContent = this.remainingTime;
+            this.timeLeft--;
+            document.getElementById('time-left').textContent = this.timeLeft;
             
-            if (this.remainingTime <= 0) {
+            if (this.timeLeft <= 0) {
                 this.endGame();
             }
         }, 1000);
     }
 
     generateSequence() {
-        const length = Math.min(5 + Math.floor(this.score / 50), 10);
+        const length = Math.min(3 + Math.floor(this.score / 50), 8);
         this.sequence = Array(length).fill(0)
             .map(() => Math.floor(Math.random() * this.colors.length));
     }
@@ -473,6 +536,10 @@ class ColorMatch {
     handleColorClick(colorIndex) {
         if (!this.isActive) return;
 
+        const display = document.getElementById('pattern-display');
+        display.style.backgroundColor = this.colors[colorIndex];
+        setTimeout(() => display.style.backgroundColor = '#fff', 200);
+
         const expectedColor = this.sequence[this.playerSequence.length];
         this.playerSequence.push(colorIndex);
 
@@ -492,7 +559,11 @@ class ColorMatch {
         playSound('goodResult');
         
         setTimeout(() => {
-            this.startRound();
+            if (this.score >= this.levelData.points) {
+                this.completeGame();
+            } else {
+                this.startRound();
+            }
         }, 1000);
     }
 
@@ -503,58 +574,74 @@ class ColorMatch {
         
         setTimeout(() => {
             display.style.backgroundColor = '#fff';
-            this.startRound();
+            if (this.score >= this.levelData.points) {
+                this.completeGame();
+            } else {
+                this.startRound();
+            }
         }, 1000);
+    }
+
+    completeGame() {
+        this.isActive = false;
+        clearInterval(this.timer);
+        
+        const timeBonus = this.timeLeft * 2;
+        const totalPoints = this.levelData.points + timeBonus;
+        
+        playSound('success');
+        this.showCompletionDialog(totalPoints, timeBonus);
     }
 
     endGame() {
         this.isActive = false;
         clearInterval(this.timer);
         
-        const totalPoints = this.score + Math.floor(this.remainingTime * 2);
         if (this.score >= this.levelData.points) {
-            this.showCompletionDialog(totalPoints);
+            this.completeGame();
         } else {
-            this.showFailureDialog();
+            this.showFailDialog();
         }
     }
 
-    showCompletionDialog(totalPoints) {
-        playSound('success');
+    showCompletionDialog(totalPoints, timeBonus) {
         const dialog = document.createElement('div');
         dialog.className = 'completion-dialog';
         dialog.innerHTML = `
             <div class="dialog-content">
                 <h2>Level Complete! 🎉</h2>
                 <div class="stats-summary">
-                    <div class="stat">Score: ${this.score}</div>
-                    <div class="stat">Time Bonus: ${Math.floor(this.remainingTime * 2)}</div>
+                    <p>Score: ${this.score}</p>
+                    <p>Time Remaining: ${this.timeLeft}s</p>
                 </div>
-                <div class="total-points">Total Points: ${totalPoints}</div>
-                <button onclick="gameManager.completeGame(${totalPoints})" class="primary-btn">Continue</button>
+                <div class="points-breakdown">
+                    <p>Base Points: ${this.levelData.points}</p>
+                    <p>Time Bonus: +${timeBonus}</p>
+                    <p class="total-points">Total Points: ${totalPoints}</p>
+                </div>
+                <button onclick="updateScore(${totalPoints})" class="game-button">Continue</button>
             </div>
         `;
-        document.getElementById('game-container').appendChild(dialog);
+        document.getElementById('active-game-container').appendChild(dialog);
     }
 
-    showFailureDialog() {
-        playSound('fail');
+    showFailDialog() {
         const dialog = document.createElement('div');
         dialog.className = 'completion-dialog failure';
         dialog.innerHTML = `
             <div class="dialog-content">
                 <h2>Time's Up!</h2>
                 <div class="stats-summary">
-                    <div class="stat">Final Score: ${this.score}</div>
-                    <div class="stat">Target Score: ${this.levelData.points}</div>
+                    <p>Final Score: ${this.score}</p>
+                    <p>Target Score: ${this.levelData.points}</p>
                 </div>
                 <div class="action-buttons">
-                    <button onclick="gameManager.retryGame()" class="primary-btn">Try Again</button>
-                    <button onclick="gameManager.exitGame()" class="secondary-btn">Exit</button>
+                    <button onclick="retryGame()" class="game-button">Try Again</button>
+                    <button onclick="returnToSelection()" class="game-button secondary">Exit</button>
                 </div>
             </div>
         `;
-        document.getElementById('game-container').appendChild(dialog);
+        document.getElementById('active-game-container').appendChild(dialog);
     }
 
     cleanup() {
@@ -562,7 +649,7 @@ class ColorMatch {
     }
 }
 
-// Memory Tiles Game Class
+// Memory Tiles Game
 class MemoryTiles {
     constructor(level) {
         this.level = level;
@@ -572,7 +659,8 @@ class MemoryTiles {
         this.matchedPairs = 0;
         this.moves = 0;
         this.isActive = false;
-        this.remainingTime = this.levelData.time;
+        this.timeLeft = this.levelData.time;
+        this.timer = null;
     }
 
     initialize() {
@@ -583,7 +671,7 @@ class MemoryTiles {
     }
 
     createTiles() {
-        const emojis = ['🎨', '🎮', '🎲', '🎯', '🎪', '🎭', '🎨', '🎪', '🎭', '🎲', '🎯', '🎮'];
+        const emojis = ['🎮', '🎨', '🎲', '🎯', '🎪', '🎭', '🎸', '🎺', '🎨', '🎪', '🎭', '🎲'];
         this.tiles = Array(this.levelData.pairs * 2).fill(null)
             .map((_, index) => ({
                 id: index,
@@ -600,16 +688,28 @@ class MemoryTiles {
     }
 
     renderUI() {
-        const container = document.getElementById('game-container');
+        const container = document.getElementById('active-game-container');
         container.innerHTML = `
             <div class="memory-game">
                 <div class="game-header">
-                    <div class="time-display">Time: <span id="time-left">${this.remainingTime}</span>s</div>
-                    <div class="moves-display">Moves: <span id="moves-count">0</span></div>
-                    <div class="pairs-display">Pairs: <span id="pairs-count">0</span>/${this.levelData.pairs}</div>
+                    <h2>${this.levelData.name}</h2>
+                    <div class="game-stats">
+                        <div class="stat">
+                            <i class="fas fa-clock"></i>
+                            Time: <span id="time-left">${this.timeLeft}</span>s
+                        </div>
+                        <div class="stat">
+                            <i class="fas fa-sync"></i>
+                            Moves: <span id="move-count">0</span>
+                        </div>
+                        <div class="stat">
+                            <i class="fas fa-puzzle-piece"></i>
+                            Pairs: <span id="pairs-found">0</span>/${this.levelData.pairs}
+                        </div>
+                    </div>
                 </div>
 
-                <div class="tiles-grid" id="tiles-grid">
+                <div class="tiles-grid">
                     ${this.tiles.map(tile => `
                         <div class="tile" data-id="${tile.id}">
                             <div class="tile-inner">
@@ -620,7 +720,13 @@ class MemoryTiles {
                     `).join('')}
                 </div>
 
-                <button id="start-btn" class="primary-btn">Start Game</button>
+                <div class="controls">
+                    <button id="start-btn" class="game-button">Start Game</button>
+                    <div class="instructions">
+                        <p>Find matching pairs of tiles</p>
+                        <p>Remember locations for better score</p>
+                    </div>
+                </div>
             </div>
         `;
 
@@ -628,7 +734,8 @@ class MemoryTiles {
     }
 
     bindEvents() {
-        document.getElementById('tiles-grid').addEventListener('click', (e) => {
+        const tilesGrid = document.querySelector('.tiles-grid');
+        tilesGrid.addEventListener('click', (e) => {
             const tile = e.target.closest('.tile');
             if (tile && this.isActive) {
                 this.flipTile(parseInt(tile.dataset.id));
@@ -641,10 +748,10 @@ class MemoryTiles {
         document.getElementById('start-btn').style.display = 'none';
         
         this.timer = setInterval(() => {
-            this.remainingTime--;
-            document.getElementById('time-left').textContent = this.remainingTime;
+            this.timeLeft--;
+            document.getElementById('time-left').textContent = this.timeLeft;
             
-            if (this.remainingTime <= 0) {
+            if (this.timeLeft <= 0) {
                 this.endGame();
             }
         }, 1000);
@@ -660,8 +767,7 @@ class MemoryTiles {
 
         if (this.flippedTiles.length === 2) {
             this.moves++;
-            document.getElementById('moves-count').textContent = this.moves;
-            
+            document.getElementById('move-count').textContent = this.moves;
             setTimeout(() => this.checkMatch(), 500);
         }
     }
@@ -682,7 +788,7 @@ class MemoryTiles {
         if (tile1.emoji === tile2.emoji) {
             tile1.isMatched = tile2.isMatched = true;
             this.matchedPairs++;
-            document.getElementById('pairs-count').textContent = this.matchedPairs;
+            document.getElementById('pairs-found').textContent = this.matchedPairs;
             playSound('goodResult');
             
             if (this.matchedPairs === this.levelData.pairs) {
@@ -690,8 +796,10 @@ class MemoryTiles {
             }
         } else {
             tile1.isFlipped = tile2.isFlipped = false;
-            this.updateTileDisplay(tile1.id);
-            this.updateTileDisplay(tile2.id);
+            setTimeout(() => {
+                this.updateTileDisplay(tile1.id);
+                this.updateTileDisplay(tile2.id);
+            }, 500);
         }
         
         this.flippedTiles = [];
@@ -701,12 +809,12 @@ class MemoryTiles {
         this.isActive = false;
         clearInterval(this.timer);
         
+        const timeBonus = Math.floor(this.timeLeft * 2);
         const moveBonus = Math.max(0, 100 - this.moves * 2);
-        const timeBonus = Math.floor(this.remainingTime * 3);
-        const totalPoints = this.levelData.points + moveBonus + timeBonus;
+        const totalPoints = this.levelData.points + timeBonus + moveBonus;
         
         playSound('success');
-        this.showCompletionDialog(totalPoints, moveBonus, timeBonus);
+        this.showCompletionDialog(totalPoints, timeBonus, moveBonus);
     }
 
     endGame() {
@@ -716,51 +824,50 @@ class MemoryTiles {
         if (this.matchedPairs === this.levelData.pairs) {
             this.completeGame();
         } else {
-            this.showFailureDialog();
+            playSound('fail');
+            this.showFailDialog();
         }
     }
 
-    showCompletionDialog(totalPoints, moveBonus, timeBonus) {
+    showCompletionDialog(totalPoints, timeBonus, moveBonus) {
         const dialog = document.createElement('div');
         dialog.className = 'completion-dialog';
         dialog.innerHTML = `
             <div class="dialog-content">
                 <h2>Level Complete! 🎉</h2>
                 <div class="stats-summary">
-                    <div class="stat">Pairs Found: ${this.matchedPairs}</div>
-                    <div class="stat">Moves Used: ${this.moves}</div>
-                    <div class="stat">Time Remaining: ${this.remainingTime}s</div>
+                    <p>Pairs Found: ${this.matchedPairs}/${this.levelData.pairs}</p>
+                    <p>Moves Used: ${this.moves}</p>
+                    <p>Time Remaining: ${this.timeLeft}s</p>
                 </div>
                 <div class="points-breakdown">
-                    <div class="point-item">Base Points: ${this.levelData.points}</div>
-                    <div class="point-item">Move Bonus: +${moveBonus}</div>
-                    <div class="point-item">Time Bonus: +${timeBonus}</div>
-                    <div class="total-points">Total Points: ${totalPoints}</div>
+                    <p>Base Points: ${this.levelData.points}</p>
+                    <p>Time Bonus: +${timeBonus}</p>
+                    <p>Efficiency Bonus: +${moveBonus}</p>
+                    <p class="total-points">Total Points: ${totalPoints}</p>
                 </div>
-                <button onclick="gameManager.completeGame(${totalPoints})" class="primary-btn">Continue</button>
+                <button onclick="updateScore(${totalPoints})" class="game-button">Continue</button>
             </div>
         `;
-        document.getElementById('game-container').appendChild(dialog);
+        document.getElementById('active-game-container').appendChild(dialog);
     }
 
-    showFailureDialog() {
-        playSound('fail');
+    showFailDialog() {
         const dialog = document.createElement('div');
         dialog.className = 'completion-dialog failure';
         dialog.innerHTML = `
             <div class="dialog-content">
                 <h2>Time's Up!</h2>
                 <div class="stats-summary">
-                    <div class="stat">Pairs Found: ${this.matchedPairs}/${this.levelData.pairs}</div>
-                    <div class="stat">Moves Used: ${this.moves}</div>
+                    <p>Pairs Found: ${this.matchedPairs}/${this.levelData.pairs}</p>
+                    <p>Moves Used: ${this.moves}</p>
                 </div>
                 <div class="action-buttons">
-                    <button onclick="gameManager.retryGame()" class="primary-btn">Try Again</button>
-                    <button onclick="gameManager.exitGame()" class="secondary-btn">Exit</button>
-                </div>
-            </div>
+                    <button onclick="retryGame()" class="game-button">Try Again</button>
+                    <button onclick="returnToSelection()" class="game-button secondary">Exit</button>
+</div>
         `;
-        document.getElementById('game-container').appendChild(dialog);
+        document.getElementById('active-game-container').appendChild(dialog);
     }
 
     cleanup() {
@@ -768,8 +875,9 @@ class MemoryTiles {
     }
 }
 
-// Export game classes and configurations
+// Export game components
 window.mentalGames = mentalGames;
+window.startMentalGame = startMentalGame;
 window.Game2048 = Game2048;
 window.ColorMatch = ColorMatch;
 window.MemoryTiles = MemoryTiles;

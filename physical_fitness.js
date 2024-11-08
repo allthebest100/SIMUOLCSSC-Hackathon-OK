@@ -1,6 +1,4 @@
-// Physical Fitness Games Configuration and Implementation
-
-// Game Configurations
+// Physical Games Configuration
 const physicalGames = {
     run: {
         id: 'run',
@@ -21,26 +19,47 @@ const physicalGames = {
         description: "Perfect your squat jumps",
         unlockLevel: 2,
         levels: [
-            { reps: 10, sets: 2, points: 150, name: "Basic Squat Training" },
+            { reps: 10, sets: 2, points: 150, name: "Basic Squats" },
             { reps: 15, sets: 3, points: 250, name: "Power Squats" },
-            { reps: 20, sets: 3, points: 350, name: "Ultimate Squat Challenge" }
+            { reps: 20, sets: 3, points: 350, name: "Expert Squats" }
         ]
     },
     swim: {
         id: 'swim',
         name: "Lane Swimmer",
         icon: '🏊',
-        description: "Swimming exercises for full body workout",
+        description: "Swimming exercises for full body workout", 
         unlockLevel: 3,
         levels: [
-            { laps: 4, style: 'freestyle', points: 200, name: "Freestyle Basics" },
-            { laps: 6, style: 'mixed', points: 300, name: "Mixed Stroke Challenge" },
+            { laps: 4, style: 'freestyle', points: 200, name: "Basic Swim" },
+            { laps: 6, style: 'mixed', points: 300, name: "Advanced Swim" },
             { laps: 8, style: 'advanced', points: 400, name: "Pro Swimmer" }
         ]
     }
 };
 
-// Running Game Class
+// Start Physical Game
+function startPhysicalGame(gameId) {
+    const game = physicalGames[gameId];
+    
+    switch(gameId) {
+        case 'run':
+            currentGame = new RunningGame(1);
+            break;
+        case 'squat':
+            currentGame = new SquatGame(1);  
+            break;
+        case 'swim':
+            currentGame = new SwimmingGame(1);
+            break;
+    }
+    
+    if (currentGame) {
+        currentGame.initialize();
+    }
+}
+
+// Running Game
 class RunningGame {
     constructor(level) {
         this.level = level;
@@ -49,9 +68,9 @@ class RunningGame {
         this.timeLeft = this.levelData.time;
         this.isActive = false;
         this.timer = null;
-        this.keyPressCount = 0;
-        this.lastKeyPress = 0;
-        this.steps = [];
+        this.stepCount = 0;
+        this.lastStepTime = 0;
+        this.perfectSteps = 0;
     }
 
     initialize() {
@@ -61,48 +80,77 @@ class RunningGame {
     }
 
     renderUI() {
-        const container = document.getElementById('game-container');
+        const container = document.getElementById('active-game-container');
         container.innerHTML = `
             <div class="running-game">
                 <div class="game-header">
                     <h2>${this.levelData.name}</h2>
-                    <div class="game-stats">
-                        <div class="stat-item">
-                            <i class="fas fa-running"></i>
-                            <span id="distance-display">0</span> / ${this.levelData.distance}m
-                        </div>
-                        <div class="stat-item">
-                            <i class="fas fa-clock"></i>
-                            <span id="time-display">${formatTime(this.timeLeft)}</span>
-                        </div>
+                    <div class="level-info">Level ${this.level}</div>
+                </div>
+                
+                <div class="game-stats">
+                    <div class="stat">
+                        <i class="fas fa-route"></i>
+                        <span id="distance">0</span>/${this.levelData.distance}m
+                    </div>
+                    <div class="stat">
+                        <i class="fas fa-clock"></i>
+                        <span id="timer">${formatTime(this.timeLeft)}</span>
+                    </div>
+                    <div class="stat">
+                        <i class="fas fa-shoe-prints"></i>
+                        <span id="perfect-steps">0</span> perfect steps
                     </div>
                 </div>
 
-                <div class="running-track">
-                    <div id="runner" class="runner">🏃</div>
-                    <div class="track-marks"></div>
+                <div class="track-container">
+                    <div class="running-track">
+                        <div id="runner" class="runner">🏃</div>
+                        <div class="track-marks"></div>
+                    </div>
+                    <div id="progress-bar" class="progress-bar">
+                        <div class="progress-fill"></div>
+                    </div>
                 </div>
 
-                <div class="control-panel">
-                    <button id="start-btn" class="primary-btn">Start Running!</button>
-                    <button id="pause-btn" class="secondary-btn hidden">Pause</button>
+                <div class="rhythm-meter">
+                    <div class="rhythm-bar">
+                        <div id="rhythm-indicator" class="rhythm-indicator"></div>
+                    </div>
+                    <div class="rhythm-marks">
+                        <span>Too Slow</span>
+                        <span>Perfect</span>
+                        <span>Too Fast</span>
+                    </div>
                 </div>
 
-                <div class="instructions">
-                    <p>Press SPACE repeatedly to run!</p>
-                    <p>Maintain a steady rhythm for bonus points</p>
+                <div class="controls">
+                    <button id="start-btn" class="game-button">Start Running!</button>
+                    <button id="pause-btn" class="game-button hidden">Pause</button>
+                    <div class="instructions">
+                        <p>Press SPACE repeatedly to run!</p>
+                        <p>Keep a steady rhythm for bonus points</p>
+                    </div>
                 </div>
             </div>
         `;
+
+        // Add event listeners
+        document.getElementById('start-btn').addEventListener('click', () => this.startRunning());
+        document.getElementById('pause-btn').addEventListener('click', () => this.pauseRunning());
     }
 
     bindEvents() {
-        document.getElementById('start-btn').addEventListener('click', () => this.startExercise());
-        document.getElementById('pause-btn').addEventListener('click', () => this.pauseExercise());
-        document.addEventListener('keydown', (e) => this.handleKeyPress(e));
+        this.handleKeyPress = (e) => {
+            if (e.code === 'Space' && this.isActive) {
+                e.preventDefault();
+                this.handleStep();
+            }
+        };
+        document.addEventListener('keydown', this.handleKeyPress);
     }
 
-    startExercise() {
+    startRunning() {
         this.isActive = true;
         document.getElementById('start-btn').classList.add('hidden');
         document.getElementById('pause-btn').classList.remove('hidden');
@@ -112,14 +160,14 @@ class RunningGame {
             this.updateTimer();
             
             if (this.timeLeft <= 0) {
-                this.endExercise();
+                this.endGame();
             }
         }, 1000);
 
         playSound('newLevel');
     }
 
-    pauseExercise() {
+    pauseRunning() {
         this.isActive = false;
         clearInterval(this.timer);
         document.getElementById('pause-btn').classList.add('hidden');
@@ -127,124 +175,134 @@ class RunningGame {
         document.getElementById('start-btn').textContent = 'Resume';
     }
 
-    handleKeyPress(event) {
-        if (!this.isActive || event.code !== 'Space') return;
-        event.preventDefault();
+    handleStep() {
+        if (!this.isActive) return;
 
         const now = Date.now();
-        const timeSinceLastPress = now - this.lastKeyPress;
-
-        if (timeSinceLastPress > 200) { // Prevent too rapid keypresses
-            this.incrementDistance();
-            this.lastKeyPress = now;
-            this.steps.push(timeSinceLastPress);
-            this.animateRunner();
+        const stepInterval = now - this.lastStepTime;
+        
+        // Check rhythm (ideal step interval is 500ms)
+        if (stepInterval > 200) { // Prevent too rapid steps
+            this.incrementDistance(this.getRhythmQuality(stepInterval));
+            this.lastStepTime = now;
+            this.stepCount++;
+            this.animateStep();
         }
     }
 
-    incrementDistance() {
-        this.distance += 10;
+    getRhythmQuality(interval) {
+        const idealInterval = 500;
+        const difference = Math.abs(interval - idealInterval);
+        
+        if (difference < 50) {
+            this.perfectSteps++;
+            document.getElementById('perfect-steps').textContent = this.perfectSteps;
+            return 1.5; // Perfect rhythm bonus
+        } else if (difference < 100) {
+            return 1.2; // Good rhythm bonus
+        }
+        return 1; // Normal step
+    }
+
+    incrementDistance(multiplier = 1) {
+        const baseIncrement = 10;
+        const increment = baseIncrement * multiplier;
+        
+        this.distance += increment;
         this.updateDistance();
-        this.checkProgress();
+        
+        if (this.distance >= this.levelData.distance) {
+            this.completeGame();
+        }
     }
 
     updateDistance() {
-        document.getElementById('distance-display').textContent = this.distance;
-        const progressPercentage = (this.distance / this.levelData.distance) * 100;
-        document.getElementById('runner').style.left = `${Math.min(progressPercentage, 100)}%`;
+        const distanceDisplay = document.getElementById('distance');
+        const runner = document.getElementById('runner');
+        const progressFill = document.querySelector('.progress-fill');
+        
+        distanceDisplay.textContent = Math.floor(this.distance);
+        
+        const progress = (this.distance / this.levelData.distance) * 100;
+        runner.style.left = `${Math.min(progress, 100)}%`;
+        progressFill.style.width = `${Math.min(progress, 100)}%`;
     }
 
     updateTimer() {
-        document.getElementById('time-display').textContent = formatTime(this.timeLeft);
+        document.getElementById('timer').textContent = formatTime(this.timeLeft);
     }
 
-    animateRunner() {
+    animateStep() {
         const runner = document.getElementById('runner');
-        runner.classList.add('running-animation');
-        setTimeout(() => runner.classList.remove('running-animation'), 150);
+        runner.classList.add('step-animation');
+        setTimeout(() => runner.classList.remove('step-animation'), 150);
     }
 
-    checkProgress() {
-        if (this.distance >= this.levelData.distance) {
-            this.completeExercise();
-        }
-    }
-
-    calculateStepConsistency() {
-        if (this.steps.length < 2) return 100;
-        
-        const intervals = this.steps.slice(1);
-        const averageInterval = intervals.reduce((a, b) => a + b) / intervals.length;
-        const variance = intervals.reduce((acc, val) => acc + Math.abs(val - averageInterval), 0) / intervals.length;
-        
-        return Math.max(0, 100 - (variance / 10));
-    }
-
-    completeExercise() {
+    completeGame() {
         this.isActive = false;
         clearInterval(this.timer);
         
         const timeBonus = Math.floor(this.timeLeft / 2);
-        const consistencyBonus = Math.floor(this.calculateStepConsistency());
-        const totalPoints = this.levelData.points + timeBonus + consistencyBonus;
-
+        const rhythmBonus = Math.floor(this.perfectSteps * 5);
+        const totalPoints = this.levelData.points + timeBonus + rhythmBonus;
+        
         playSound('success');
-        this.showCompletionDialog(totalPoints, timeBonus, consistencyBonus);
+        this.showCompletionDialog(totalPoints, timeBonus, rhythmBonus);
     }
 
-    endExercise() {
+    endGame() {
         this.isActive = false;
         clearInterval(this.timer);
-
+        
         if (this.distance >= this.levelData.distance) {
-            this.completeExercise();
+            this.completeGame();
         } else {
             playSound('fail');
-            this.showFailureDialog();
+            this.showFailDialog();
         }
     }
 
-    showCompletionDialog(totalPoints, timeBonus, consistencyBonus) {
+    showCompletionDialog(totalPoints, timeBonus, rhythmBonus) {
         const dialog = document.createElement('div');
         dialog.className = 'completion-dialog';
         dialog.innerHTML = `
             <div class="dialog-content">
-                <h2>Exercise Complete! 🎉</h2>
+                <h2>Amazing Run! 🎉</h2>
                 <div class="stats-summary">
-                    <div class="stat">Distance Covered: ${this.distance}m</div>
-                    <div class="stat">Time Remaining: ${this.timeLeft}s</div>
-                    <div class="stat">Running Consistency: ${Math.floor(this.calculateStepConsistency())}%</div>
+                    <p>Distance Covered: ${Math.floor(this.distance)}m</p>
+                    <p>Perfect Steps: ${this.perfectSteps}</p>
+                    <p>Time Remaining: ${this.timeLeft}s</p>
                 </div>
                 <div class="points-breakdown">
-                    <div class="point-item">Base Points: ${this.levelData.points}</div>
-                    <div class="point-item">Time Bonus: +${timeBonus}</div>
-                    <div class="point-item">Consistency Bonus: +${consistencyBonus}</div>
-                    <div class="total-points">Total Points: ${totalPoints}</div>
+                    <p>Base Points: ${this.levelData.points}</p>
+                    <p>Time Bonus: +${timeBonus}</p>
+                    <p>Rhythm Bonus: +${rhythmBonus}</p>
+                    <p class="total-points">Total Points: ${totalPoints}</p>
                 </div>
-                <button onclick="gameManager.completeGame(${totalPoints})" class="primary-btn">Continue</button>
+                <button onclick="updateScore(${totalPoints})" class="game-button">Continue</button>
             </div>
         `;
-        document.getElementById('game-container').appendChild(dialog);
+        document.getElementById('active-game-container').appendChild(dialog);
     }
 
-    showFailureDialog() {
+    showFailDialog() {
         const dialog = document.createElement('div');
         dialog.className = 'completion-dialog failure';
         dialog.innerHTML = `
             <div class="dialog-content">
                 <h2>Time's Up! ⏰</h2>
                 <div class="stats-summary">
-                    <div class="stat">Distance Covered: ${this.distance}m</div>
-                    <div class="stat">Target Distance: ${this.levelData.distance}m</div>
-                    <div class="stat">Completion: ${Math.floor((this.distance / this.levelData.distance) * 100)}%</div>
+                    <p>Distance Covered: ${Math.floor(this.distance)}m</p>
+                    <p>Target Distance: ${this.levelData.distance}m</p>
+                    <p>Completion: ${Math.floor((this.distance / this.levelData.distance) * 100)}%</p>
                 </div>
                 <div class="action-buttons">
-                    <button onclick="gameManager.retryGame()" class="primary-btn">Try Again</button>
-                    <button onclick="gameManager.exitGame()" class="secondary-btn">Exit</button>
+                    <button onclick="retryGame()" class="game-button">Try Again</button>
+                    <button onclick="returnToSelection()" class="game-button secondary">Exit</button>
                 </div>
             </div>
         `;
-        document.getElementById('game-container').appendChild(dialog);
+        document.getElementById('active-game-container').appendChild(dialog);
     }
 
     cleanup() {
@@ -253,7 +311,7 @@ class RunningGame {
     }
 }
 
-// Squat Game Class
+// Squat Game
 class SquatGame {
     constructor(level) {
         this.level = level;
@@ -262,8 +320,8 @@ class SquatGame {
         this.reps = 0;
         this.isActive = false;
         this.inSquat = false;
-        this.setStartTime = 0;
-        this.repTimes = [];
+        this.squatStartTime = 0;
+        this.perfectSquats = 0;
     }
 
     initialize() {
@@ -273,95 +331,123 @@ class SquatGame {
     }
 
     renderUI() {
-        const container = document.getElementById('game-container');
+        const container = document.getElementById('active-game-container');
         container.innerHTML = `
             <div class="squat-game">
                 <div class="game-header">
                     <h2>${this.levelData.name}</h2>
-                    <div class="game-stats">
-                        <div class="stat-item">Set ${this.currentSet}/${this.levelData.sets}</div>
-                        <div class="stat-item">Rep ${this.reps}/${this.levelData.reps}</div>
+                    <div class="level-info">Level ${this.level}</div>
+                </div>
+
+                <div class="game-stats">
+                    <div class="stat">
+                        <i class="fas fa-layer-group"></i>
+                        Set <span id="current-set">${this.currentSet}</span>/${this.levelData.sets}
+                    </div>
+                    <div class="stat">
+                        <i class="fas fa-redo"></i>
+                        Rep <span id="current-reps">${this.reps}</span>/${this.levelData.reps}
+                    </div>
+                    <div class="stat">
+                        <i class="fas fa-star"></i>
+                        Perfect: <span id="perfect-squats">${this.perfectSquats}</span>
                     </div>
                 </div>
 
                 <div class="exercise-area">
-                    <div id="character" class="character-sprite standing"></div>
-                    <div class="form-guide">
-                        <div class="guide-text" id="guide-text">Press SPACE to squat</div>
-                        <div class="form-meter" id="form-meter"></div>
+                    <div id="character" class="character">🧍‍♂️</div>
+                    <div class="form-meter">
+                        <div id="form-indicator" class="form-indicator"></div>
+                        <div class="form-marks">
+                            <span>Start</span>
+                            <span>Perfect Form</span>
+                            <span>Too Low</span>
+                        </div>
                     </div>
                 </div>
 
-                <div class="control-panel">
-                    <button id="start-btn" class="primary-btn">Start Set</button>
-                    <button id="rest-btn" class="secondary-btn hidden">Take a Break</button>
-                </div>
-
-                <div class="instructions">
-                    <p>Hold SPACE to squat down, release to stand up</p>
-                    <p>Maintain proper form for maximum points</p>
-                    <p>Rest between sets for better performance</p>
+                <div class="controls">
+                    <button id="start-btn" class="game-button">Start Set</button>
+                    <div class="instructions">
+                        <p>Hold SPACE to squat down</p>
+                        <p>Release to stand up</p>
+                        <p>Keep proper form for bonus points</p>
+                    </div>
                 </div>
             </div>
         `;
+
+        document.getElementById('start-btn').addEventListener('click', () => this.startSet());
     }
 
     bindEvents() {
-        document.getElementById('start-btn').addEventListener('click', () => this.startSet());
-        document.getElementById('rest-btn').addEventListener('click', () => this.takeRest());
-        document.addEventListener('keydown', (e) => this.handleKeyDown(e));
-        document.addEventListener('keyup', (e) => this.handleKeyUp(e));
+        this.handleKeyDown = (e) => {
+            if (e.code === 'Space' && this.isActive && !this.inSquat) {
+                e.preventDefault();
+                this.startSquat();
+            }
+        };
+
+        this.handleKeyUp = (e) => {
+            if (e.code === 'Space' && this.inSquat) {
+                e.preventDefault();
+                this.endSquat();
+            }
+        };
+
+        document.addEventListener('keydown', this.handleKeyDown);
+        document.addEventListener('keyup', this.handleKeyUp);
     }
 
     startSet() {
         this.isActive = true;
-        this.setStartTime = Date.now();
         document.getElementById('start-btn').classList.add('hidden');
-        document.getElementById('guide-text').textContent = 'Ready to squat!';
         playSound('newLevel');
-    }
-
-    handleKeyDown(event) {
-        if (!this.isActive || event.code !== 'Space' || this.inSquat) return;
-        event.preventDefault();
-        
-        this.startSquat();
-    }
-
-    handleKeyUp(event) {
-        if (!this.isActive || event.code !== 'Space' || !this.inSquat) return;
-        event.preventDefault();
-        
-        this.completeSquat();
     }
 
     startSquat() {
         this.inSquat = true;
-        const character = document.getElementById('character');
-        character.classList.remove('standing');
-        character.classList.add('squatting');
-        
         this.squatStartTime = Date.now();
-        this.startFormCheck();
+        this.updateCharacter('squatting');
+        this.startFormTracking();
     }
 
-    completeSquat() {
+    endSquat() {
         if (!this.inSquat) return;
-        
+
         const squatDuration = Date.now() - this.squatStartTime;
         const formScore = this.calculateFormScore(squatDuration);
         
         this.inSquat = false;
-        const character = document.getElementById('character');
-        character.classList.remove('squatting');
-        character.classList.add('standing');
+        this.updateCharacter('standing');
         
         if (formScore >= 70) {
-            this.countRep();
-            this.repTimes.push(squatDuration);
+            this.countRep(formScore);
         } else {
             this.showFormWarning();
         }
+    }
+
+    updateCharacter(state) {
+        const character = document.getElementById('character');
+        character.textContent = state === 'squatting' ? '🏃' : '🧍‍♂️';
+        character.className = `character ${state}`;
+    }
+
+    startFormTracking() {
+        const formIndicator = document.getElementById('form-indicator');
+        let trackingInterval = setInterval(() => {
+            if (!this.inSquat) {
+                clearInterval(trackingInterval);
+                formIndicator.style.height = '0%';
+                return;
+            }
+
+            const duration = Date.now() - this.squatStartTime;
+            const form = this.calculateFormScore(duration);
+            formIndicator.style.height = `${form}%`;
+            formIndicator.style.backgroundColor = form >= 70 ? '#4CAF50' : '#FF5252';
+        }, 50);
     }
 
     calculateFormScore(duration) {
@@ -371,114 +457,76 @@ class SquatGame {
         return Math.max(0, 100 - (variance / 50));
     }
 
-    startFormCheck() {
-        const formMeter = document.getElementById('form-meter');
-        let checkInterval = setInterval(() => {
-            if (!this.inSquat) {
-                clearInterval(checkInterval);
-                formMeter.style.width = '0%';
-                return;
-            }
-            
-            const duration = Date.now() - this.squatStartTime;
-            const formScore = this.calculateFormScore(duration);
-            formMeter.style.width = `${formScore}%`;
-            formMeter.style.backgroundColor = formScore >= 70 ? '#4CAF50' : '#FF5252';
-        }, 100);
-    }
-
-    countRep() {
+    countRep(formScore) {
         this.reps++;
-        playSound('goodResult');
-        
+        if (formScore >= 90) {
+            this.perfectSquats++;
+            playSound('goodResult');
+        } else {
+            playSound('success');
+        }
+
+        this.updateUI();
+
         if (this.reps >= this.levelData.reps) {
             this.completeSet();
-        } else {
-            this.updateUI();
         }
+    }
+
+    updateUI() {
+        document.getElementById('current-reps').textContent = this.reps;
+        document.getElementById('perfect-squats').textContent = this.perfectSquats;
     }
 
     completeSet() {
         this.isActive = false;
         
         if (this.currentSet >= this.levelData.sets) {
-            this.completeExercise();
+            this.completeGame();
         } else {
             this.currentSet++;
             this.reps = 0;
-            this.showRestPrompt();
+            document.getElementById('current-set').textContent = this.currentSet;
+            document.getElementById('start-btn').textContent = 'Start Next Set';
+            document.getElementById('start-btn').classList.remove('hidden');
+            playSound('success');
         }
     }
 
-    showRestPrompt() {
-        document.getElementById('rest-btn').classList.remove('hidden');
-        document.getElementById('guide-text').textContent = 'Take a short rest!';
-    }
-
-    takeRest() {
-        document.getElementById('rest-btn').classList.add('hidden');
-        document.getElementById('start-btn').classList.remove('hidden');
-        document.getElementById('start-btn').textContent = 'Start Next Set';
+    completeGame() {
+        const formBonus = this.perfectSquats * 10;
+        const totalPoints = this.levelData.points + formBonus;
         
-        setTimeout(() => {
-            if (!this.isActive) {
-                document.getElementById('guide-text').textContent = 'Ready for next set!';
-            }
-        }, 3000);
+        playSound('levelUp');
+        this.showCompletionDialog(totalPoints, formBonus);
     }
 
-    completeExercise() {
-        const formScore = this.calculateAverageForm();
-        const timeBonus = this.calculateTimeBonus();
-        const totalPoints = this.levelData.points + formScore + timeBonus;
-        
-        playSound('success');
-        this.showCompletionDialog(totalPoints, formScore, timeBonus);
-    }
-
-    calculateAverageForm() {
-        if (this.repTimes.length === 0) return 0;
-        const avgTime = this.repTimes.reduce((a, b) => a + b) / this.repTimes.length;
-        return Math.floor(this.calculateFormScore(avgTime));
-    }
-
-    calculateTimeBonus() {
-        const totalTime = (Date.now() - this.setStartTime) / 1000;
-        const expectedTime = this.levelData.sets * this.levelData.reps * 3; // 3 seconds per rep
-        return Math.max(0, Math.floor((expectedTime - totalTime) / 2));
-    }
-
-    showCompletionDialog(totalPoints, formScore, timeBonus) {
+    showCompletionDialog(totalPoints, formBonus) {
         const dialog = document.createElement('div');
         dialog.className = 'completion-dialog';
         dialog.innerHTML = `
             <div class="dialog-content">
                 <h2>Exercise Complete! 🎉</h2>
                 <div class="stats-summary">
-                    <div class="stat">Sets Completed: ${this.levelData.sets}</div>
-                    <div class="stat">Total Reps: ${this.levelData.sets * this.levelData.reps}</div>
-                    <div class="stat">Form Score: ${formScore}%</div>
+                    <p>Sets Completed: ${this.levelData.sets}</p>
+                    <p>Total Reps: ${this.levelData.sets * this.levelData.reps}</p>
+                    <p>Perfect Squats: ${this.perfectSquats}</p>
                 </div>
                 <div class="points-breakdown">
-                    <div class="point-item">Base Points: ${this.levelData.points}</div>
-                    <div class="point-item">Form Bonus: +${formScore}</div>
-                    <div class="point-item">Time Bonus: +${timeBonus}</div>
-                    <div class="total-points">Total Points: ${totalPoints}</div>
+                    <p>Base Points: ${this.levelData.points}</p>
+                    <p>Form Bonus: +${formBonus}</p>
+                    <p class="total-points">Total Points: ${totalPoints}</p>
                 </div>
-                <button onclick="gameManager.completeGame(${totalPoints})" class="primary-btn">Continue</button>
+                <button onclick="updateScore(${totalPoints})" class="game-button">Continue</button>
             </div>
         `;
-        document.getElementById('game-container').appendChild(dialog);
+        document.getElementById('active-game-container').appendChild(dialog);
     }
 
     showFormWarning() {
-        const guideText = document.getElementById('guide-text');
-        guideText.textContent = 'Maintain proper form!';
-        guideText.classList.add('warning');
-        setTimeout(() => {
-            guideText.classList.remove('warning');
-            guideText.textContent = 'Try again!';
-        }, 1000);
+        const character = document.getElementById('character');
+        character.classList.add('warning');
+        setTimeout(() => character.classList.remove('warning'), 500);
     }
 
     cleanup() {
@@ -487,16 +535,17 @@ class SquatGame {
     }
 }
 
-// Swimming Game Class
+// Swimming Game
 class SwimmingGame {
     constructor(level) {
         this.level = level;
         this.levelData = physicalGames.swim.levels[level - 1];
-        this.currentLap = 0;
+        this.laps = 0;
         this.strokes = 0;
         this.isActive = false;
         this.strokeTimes = [];
-        this.lapTimes = [];
+        this.perfectStrokes = 0;
+        this.currentDirection = 'right';
     }
 
     initialize() {
@@ -506,98 +555,103 @@ class SwimmingGame {
     }
 
     renderUI() {
-        const container = document.getElementById('game-container');
+        const container = document.getElementById('active-game-container');
         container.innerHTML = `
             <div class="swimming-game">
                 <div class="game-header">
                     <h2>${this.levelData.name}</h2>
-                    <div class="game-stats">
-                        <div class="stat-item">Lap ${this.currentLap + 1}/${this.levelData.laps}</div>
-                        <div class="stat-item">Style: ${this.levelData.style}</div>
+                    <div class="level-info">Level ${this.level}</div>
+                </div>
+
+                <div class="game-stats">
+                    <div class="stat">
+                        <i class="fas fa-swimming-pool"></i>
+                        Laps: <span id="current-laps">${this.laps}</span>/${this.levelData.laps}
+                    </div>
+                    <div class="stat">
+                        <i class="fas fa-water"></i>
+                        Style: ${this.levelData.style}
+                    </div>
+                    <div class="stat">
+                        <i class="fas fa-star"></i>
+                        Perfect: <span id="perfect-strokes">${this.perfectStrokes}</span>
                     </div>
                 </div>
 
                 <div class="pool-area">
                     <div class="lane-markers"></div>
-                    <div id="swimmer" class="swimmer"></div>
+                    <div id="swimmer" class="swimmer">🏊</div>
                     <div class="water-effect"></div>
                 </div>
 
                 <div class="stroke-meter">
                     <div id="rhythm-bar" class="rhythm-bar"></div>
-                    <div class="stroke-guide">
-                        <div class="guide-mark perfect"></div>
-                        <div class="guide-mark good"></div>
-                        <div class="guide-mark poor"></div>
+                    <div class="rhythm-marks">
+                        <span>Too Slow</span>
+                        <span>Perfect</span>
+                        <span>Too Fast</span>
                     </div>
                 </div>
 
-                <div class="control-panel">
-                    <button id="start-btn" class="primary-btn">Start Swimming!</button>
-                    <div id="stroke-info" class="stroke-info hidden">
-                        Press SPACE alternately for arm strokes
+                <div class="controls">
+                    <button id="start-btn" class="game-button">Start Swimming</button>
+                    <div class="instructions">
+                        <p>Press SPACE alternately for arm strokes</p>
+                        <p>Maintain rhythm for perfect form</p>
                     </div>
                 </div>
             </div>
         `;
+
+        document.getElementById('start-btn').addEventListener('click', () => this.startSwimming());
+        this.createWaterEffect();
+    }
+
+    createWaterEffect() {
+        const waves = document.querySelector('.water-effect');
+        for (let i = 0; i < 10; i++) {
+            const wave = document.createElement('div');
+            wave.className = 'wave';
+            wave.style.animationDelay = `${i * 0.2}s`;
+            waves.appendChild(wave);
+        }
     }
 
     bindEvents() {
-        document.getElementById('start-btn').addEventListener('click', () => this.startSwimming());
-        document.addEventListener('keydown', (e) => this.handleKeyPress(e));
+        this.handleKeyPress = (e) => {
+            if (e.code === 'Space' && this.isActive) {
+                e.preventDefault();
+                this.stroke();
+            }
+        };
+        document.addEventListener('keydown', this.handleKeyPress);
     }
 
     startSwimming() {
         this.isActive = true;
         document.getElementById('start-btn').classList.add('hidden');
-        document.getElementById('stroke-info').classList.remove('hidden');
-        this.startTime = Date.now();
-        this.animateWater();
         playSound('newLevel');
     }
 
-    handleKeyPress(event) {
-        if (!this.isActive || event.code !== 'Space') return;
-        event.preventDefault();
+    stroke() {
+        if (!this.isActive) return;
 
         const now = Date.now();
         const strokeInterval = now - (this.lastStrokeTime || now);
-        this.lastStrokeTime = now;
-
+        
         if (strokeInterval > 300) { // Prevent too rapid strokes
-            this.stroke(strokeInterval);
+            this.lastStrokeTime = now;
+            this.strokeTimes.push(strokeInterval);
+            this.strokes++;
+            
+            const rhythmQuality = this.calculateRhythm(strokeInterval);
+            this.updateStrokeVisuals(rhythmQuality);
+            this.moveSwimmer();
+
+            if (this.strokes % 10 === 0) {
+                this.completeLap();
+            }
         }
-    }
-
-    stroke(interval) {
-        this.strokes++;
-        this.strokeTimes.push(interval);
-        this.moveSwimmer();
-        this.updateRhythmMeter(interval);
-
-        if (this.strokes % 10 === 0) { // Every 10 strokes completes a lap
-            this.completeLap();
-        }
-    }
-
-    moveSwimmer() {
-        const swimmer = document.getElementById('swimmer');
-        const progress = (this.strokes % 10) / 10;
-        const direction = Math.floor(this.strokes / 10) % 2 === 0 ? 1 : -1;
-        
-        swimmer.style.left = direction > 0 ? 
-            `${progress * 100}%` : 
-            `${(1 - progress) * 100}%`;
-        
-        swimmer.classList.toggle('stroke-left', this.strokes % 2 === 0);
-    }
-
-    updateRhythmMeter(interval) {
-        const rhythmBar = document.getElementById('rhythm-bar');
-        const rhythm = this.calculateRhythm(interval);
-        
-        rhythmBar.style.width = `${rhythm}%`;
-        rhythmBar.className = `rhythm-bar ${this.getRhythmClass(rhythm)}`;
     }
 
     calculateRhythm(interval) {
@@ -607,81 +661,94 @@ class SwimmingGame {
         return Math.max(0, 100 - (variance / 10));
     }
 
-    getRhythmClass(rhythm) {
-        if (rhythm >= 90) return 'perfect';
-        if (rhythm >= 70) return 'good';
-        return 'poor';
-    }
-
-    completeLap() {
-        this.currentLap++;
-        this.lapTimes.push(Date.now() - (this.lastLapTime || this.startTime));
-        this.lastLapTime = Date.now();
-
-        if (this.currentLap >= this.levelData.laps) {
-            this.completeExercise();
-        } else {
+    updateStrokeVisuals(rhythmQuality) {
+        const rhythmBar = document.getElementById('rhythm-bar');
+        rhythmBar.style.width = `${rhythmQuality}%`;
+        
+        if (rhythmQuality >= 90) {
+            this.perfectStrokes++;
+            document.getElementById('perfect-strokes').textContent = this.perfectStrokes;
+            rhythmBar.className = 'rhythm-bar perfect';
             playSound('goodResult');
-            this.updateUI();
+        } else if (rhythmQuality >= 70) {
+            rhythmBar.className = 'rhythm-bar good';
+        } else {
+            rhythmBar.className = 'rhythm-bar poor';
         }
     }
 
-    updateUI() {
-        const lapDisplay = document.querySelector('.stat-item');
-        lapDisplay.textContent = `Lap ${this.currentLap + 1}/${this.levelData.laps}`;
+    moveSwimmer() {
+        const swimmer = document.getElementById('swimmer');
+        const poolWidth = document.querySelector('.pool-area').offsetWidth - swimmer.offsetWidth;
+        let currentPosition = parseFloat(swimmer.style.left) || 0;
+
+        if (this.currentDirection === 'right') {
+            currentPosition += 10;
+            if (currentPosition >= 100) {
+                this.currentDirection = 'left';
+                swimmer.style.transform = 'scaleX(-1)';
+            }
+        } else {
+            currentPosition -= 10;
+            if (currentPosition <= 0) {
+                this.currentDirection = 'right';
+                swimmer.style.transform = 'scaleX(1)';
+            }
+        }
+
+        swimmer.style.left = `${currentPosition}%`;
+        this.createSplash(swimmer);
     }
 
-    completeExercise() {
+    createSplash(swimmer) {
+        const splash = document.createElement('div');
+        splash.className = 'splash';
+        splash.style.left = swimmer.style.left;
+        splash.style.top = swimmer.style.top;
+        document.querySelector('.pool-area').appendChild(splash);
+        setTimeout(() => splash.remove(), 1000);
+    }
+
+    completeLap() {
+        this.laps++;
+        document.getElementById('current-laps').textContent = this.laps;
+
+        if (this.laps >= this.levelData.laps) {
+            this.completeGame();
+        } else {
+            playSound('success');
+        }
+    }
+
+    completeGame() {
         this.isActive = false;
-        const rhythmScore = this.calculateAverageRhythm();
-        const timeBonus = this.calculateTimeBonus();
-        const totalPoints = this.levelData.points + rhythmScore + timeBonus;
+        const rhythmBonus = Math.floor(this.perfectStrokes * 5);
+        const totalPoints = this.levelData.points + rhythmBonus;
         
-        playSound('success');
-        this.showCompletionDialog(totalPoints, rhythmScore, timeBonus);
+        playSound('levelUp');
+        this.showCompletionDialog(totalPoints, rhythmBonus);
     }
 
-    calculateAverageRhythm() {
-        if (this.strokeTimes.length <= 1) return 0;
-        const intervals = this.strokeTimes.slice(1);
-        return Math.floor(
-            intervals.reduce((sum, interval) => sum + this.calculateRhythm(interval), 0) / 
-            intervals.length
-        );
-    }
-
-    calculateTimeBonus() {
-        const totalTime = (Date.now() - this.startTime) / 1000;
-        const expectedTime = this.levelData.laps * 30; // 30 seconds per lap
-        return Math.max(0, Math.floor((expectedTime - totalTime) / 3));
-    }
-
-    showCompletionDialog(totalPoints, rhythmScore, timeBonus) {
+    showCompletionDialog(totalPoints, rhythmBonus) {
         const dialog = document.createElement('div');
         dialog.className = 'completion-dialog';
         dialog.innerHTML = `
             <div class="dialog-content">
-                <h2>Exercise Complete! 🎉</h2>
+                <h2>Swimming Complete! 🎉</h2>
                 <div class="stats-summary">
-                    <div class="stat">Laps Completed: ${this.levelData.laps}</div>
-                    <div class="stat">Swimming Style: ${this.levelData.style}</div>
-                    <div class="stat">Stroke Rhythm: ${rhythmScore}%</div>
+                    <p>Laps Completed: ${this.laps}</p>
+                    <p>Perfect Strokes: ${this.perfectStrokes}</p>
+                    <p>Swimming Style: ${this.levelData.style}</p>
                 </div>
                 <div class="points-breakdown">
-                    <div class="point-item">Base Points: ${this.levelData.points}</div>
-                    <div class="point-item">Rhythm Bonus: +${rhythmScore}</div>
-                    <div class="point-item">Time Bonus: +${timeBonus}</div>
-                    <div class="total-points">Total Points: ${totalPoints}</div>
+                    <p>Base Points: ${this.levelData.points}</p>
+                    <p>Rhythm Bonus: +${rhythmBonus}</p>
+                    <p class="total-points">Total Points: ${totalPoints}</p>
                 </div>
-                <button onclick="gameManager.completeGame(${totalPoints})" class="primary-btn">Continue</button>
+                <button onclick="updateScore(${totalPoints})" class="game-button">Continue</button>
             </div>
         `;
-        document.getElementById('game-container').appendChild(dialog);
-    }
-
-    animateWater() {
-        const waterEffect = document.querySelector('.water-effect');
-        waterEffect.style.animation = 'water-ripple 2s infinite linear';
+        document.getElementById('active-game-container').appendChild(dialog);
     }
 
     cleanup() {
@@ -689,8 +756,9 @@ class SwimmingGame {
     }
 }
 
-// Export game classes and configurations
+// Export all game classes and configurations
 window.physicalGames = physicalGames;
+window.startPhysicalGame = startPhysicalGame;
 window.RunningGame = RunningGame;
 window.SquatGame = SquatGame;
 window.SwimmingGame = SwimmingGame;
