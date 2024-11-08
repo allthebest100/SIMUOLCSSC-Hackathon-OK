@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Health & Wellness Game</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="game-container">
+        <!-- Theme Selection Screen -->
+        <div id="theme-screen">
+            <h1>Choose Your Wellness Journey</h1>
+            <div class="theme-buttons">
+                <button onclick="selectTheme('physical')" class="theme-btn physical">
+                    <i class="fas fa-heartbeat"></i>
+                    <span>Physical Fitness</span>
+                </button>
+                <button onclick="selectTheme('mental')" class="theme-btn mental">
+                    <i class="fas fa-brain"></i>
+                    <span>Mental Health</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Character Selection Screen -->
+        <div id="character-screen" class="hidden">
+            <h2>Choose Your Character</h2>
+            <div class="character-grid">
+                <div class="character" onclick="selectCharacter('runner')">
+                    <span class="character-icon">🏃</span>
+                    <span class="character-name">Runner</span>
+                </div>
+                <div class="character" onclick="selectCharacter('swimmer')">
+                    <span class="character-icon">🏊</span>
+                    <span class="character-name">Swimmer</span>
+                </div>
+                <div class="character" onclick="selectCharacter('yogi')">
+                    <span class="character-icon">🧘</span>
+                    <span class="character-name">Yogi</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="game-screen" class="hidden">
+            <div class="game-header">
+                <div class="character-info">
+                    <span id="character-icon"></span>
+                    <span id="character-name"></span>
+                </div>
+                <div class="game-stats">
+                    <div class="score">
+                        <i class="fas fa-star"></i>
+                        <span id="score">0</span>
+                    </div>
+                    <div class="level">Level <span id="level">1</span></div>
+                </div>
+            </div>
+            
+            <div class="challenge-area">
+                <p id="challenge-text">Complete challenges to progress!</p>
+            </div>
+
+            <button onclick="completeChallenge()" class="challenge-btn">
+                Complete Challenge
+            </button>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
