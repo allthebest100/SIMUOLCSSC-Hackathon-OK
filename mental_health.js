@@ -1,438 +1,138 @@
-// Mental Games Configuration
-const mentalGames = {
-    puzzle2048: {
-        id: 'puzzle2048',
-        name: "2048 Challenge",
-        icon: '🎮',
-        description: "Train your strategic thinking",
-        unlockLevel: 1,
-        levels: [
-            { target: 256, moves: 50, points: 100, name: "Beginner 2048" },
-            { target: 512, moves: 100, points: 200, name: "Advanced 2048" },
-            { target: 2048, moves: 200, points: 300, name: "Master 2048" }
-        ]
-    },
+// Mental Game Base Class
+class MentalGameBase {
+    constructor(gameManager) {
+        this.gameManager = gameManager;
+        this.isActive = false;
+        this.audioManager = new gameUtils.AudioManager();
+    }
+
+    initialize() {
+        this.renderUI();
+        this.bindEvents();
+        this.audioManager.play('NewLevel');
+    }
+
+    cleanup() {
+        this.isActive = false;
+        this.removeEvents();
+    }
+}
+
+// Game Configurations
+const MENTAL_GAMES = {
     colorMatch: {
         id: 'colorMatch',
-        name: "Color Match",
+        name: "Colour Match",
         icon: '🎨',
-        description: "Test your pattern recognition",
-        unlockLevel: 2,
+        description: "Match colors with focused precision",
+        unlockLevel: 1,
+        wellnessTip: "Calm Focus",
         levels: [
-            { colors: 4, time: 60, points: 150, name: "Simple Patterns" },
-            { colors: 6, time: 45, points: 250, name: "Complex Patterns" },
-            { colors: 8, time: 30, points: 350, name: "Expert Patterns" }
+            { pairs: 4, time: 60, points: 100, name: "Basic Patterns" },
+            { pairs: 6, time: 60, points: 200, name: "Complex Patterns" },
+            { pairs: 8, time: 60, points: 300, name: "Expert Patterns" }
         ]
     },
     memoryTiles: {
         id: 'memoryTiles',
         name: "Memory Tiles",
         icon: '🧩',
-        description: "Enhance your memory skills",
-        unlockLevel: 3,
+        description: "Test and improve your memory",
+        unlockLevel: 2,
+        wellnessTip: "Sharpen Memory",
         levels: [
-            { pairs: 6, time: 120, points: 200, name: "Memory Basics" },
-            { pairs: 8, time: 100, points: 300, name: "Memory Challenge" },
-            { pairs: 12, time: 90, points: 400, name: "Memory Master" }
+            { tiles: 12, time: 90, points: 150, name: "Simple Memory" },
+            { tiles: 16, time: 120, points: 250, name: "Complex Memory" },
+            { tiles: 20, time: 150, points: 350, name: "Expert Memory" }
+        ]
+    },
+    puzzle2048: {
+        id: 'puzzle2048',
+        name: "2048",
+        icon: '🔢',
+        description: "Combine numbers strategically",
+        unlockLevel: 3,
+        wellnessTip: "Patience Wins",
+        levels: [
+            { target: 256, moves: 50, points: 200, name: "Basic Strategy" },
+            { target: 512, moves: 100, points: 300, name: "Advanced Strategy" },
+            { target: 1024, moves: 150, points: 400, name: "Expert Strategy" }
+        ]
+    },
+    snake: {
+        id: 'snake',
+        name: "Snake",
+        icon: '🐍',
+        description: "Guide the snake with mindfulness",
+        unlockLevel: 4,
+        wellnessTip: "Mindful Moves",
+        levels: [
+            { target: 10, speed: 1, points: 250, name: "Slow & Steady" },
+            { target: 15, speed: 1.5, points: 350, name: "Pick up Pace" },
+            { target: 20, speed: 2, points: 450, name: "Swift & Mindful" }
+        ]
+    },
+    whackaMole: {
+        id: 'whackaMole',
+        name: "Whack-a-Mole",
+        icon: '🔨',
+        description: "Release stress with quick reactions",
+        unlockLevel: 5,
+        wellnessTip: "Stress Release",
+        levels: [
+            { targets: 20, time: 30, points: 300, name: "Stress Relief" },
+            { targets: 30, time: 30, points: 400, name: "Quick Relief" },
+            { targets: 40, time: 30, points: 500, name: "Zen Master" }
         ]
     }
 };
 
-// Start Mental Game
-function startMentalGame(gameId) {
-    const gameContainer = document.getElementById('active-game-container');
-    const game = mentalGames[gameId];
-    
-    switch(gameId) {
-        case 'puzzle2048':
-            currentGame = new Game2048(1);
-            break;
-        case 'colorMatch':
-            currentGame = new ColorMatch(1);
-            break;
-        case 'memoryTiles':
-            currentGame = new MemoryTiles(1);
-            break;
-    }
-    
-    if (currentGame) {
-        currentGame.initialize();
+// Game Factory
+class MentalGameFactory {
+    static createGame(gameId, level, gameManager) {
+        switch(gameId) {
+            case 'colorMatch':
+                return new ColorMatchGame(level, gameManager);
+            case 'memoryTiles':
+                return new MemoryTilesGame(level, gameManager);
+            case 'puzzle2048':
+                return new Puzzle2048Game(level, gameManager);
+            case 'snake':
+                return new SnakeGame(level, gameManager);
+            case 'whackaMole':
+                return new WhackaMoleGame(level, gameManager);
+            default:
+                throw new Error(`Unknown game: ${gameId}`);
+        }
     }
 }
 
-// 2048 Game
-class Game2048 {
-    constructor(level) {
-        this.level = level;
-        this.levelData = mentalGames.puzzle2048.levels[level - 1];
-        this.grid = Array(4).fill().map(() => Array(4).fill(0));
-        this.score = 0;
-        this.moves = 0;
-        this.isActive = false;
-        this.highestTile = 0;
-    }
-
-    initialize() {
-        this.addNewTile();
-        this.addNewTile();
-        this.renderUI();
-        this.bindEvents();
-        playSound('newLevel');
-    }
-
-    renderUI() {
-        const container = document.getElementById('active-game-container');
-        container.innerHTML = `
-            <div class="game-2048">
-                <div class="game-header">
-                    <h2>${this.levelData.name}</h2>
-                    <div class="game-stats">
-                        <div class="stat">
-                            <i class="fas fa-star"></i>
-                            Score: <span id="current-score">0</span>
-                        </div>
-                        <div class="stat">
-                            <i class="fas fa-arrows-alt"></i>
-                            Moves: <span id="moves-left">${this.levelData.moves}</span>
-                        </div>
-                        <div class="stat">
-                            <i class="fas fa-bullseye"></i>
-                            Target: ${this.levelData.target}
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="game-grid">
-                    ${this.createGridHTML()}
-                </div>
-
-                <div class="controls">
-                    <button id="restart-btn" class="game-button">Restart</button>
-                    <div class="instructions">
-                        <p>Use arrow keys to move tiles</p>
-                        <p>Combine same numbers to reach ${this.levelData.target}</p>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        this.updateGrid();
-        document.getElementById('restart-btn').addEventListener('click', () => this.restart());
-    }
-
-    createGridHTML() {
-        return Array(4).fill()
-            .map(() => `
-                <div class="grid-row">
-                    ${Array(4).fill('<div class="grid-cell"></div>').join('')}
-                </div>
-            `).join('');
-    }
-
-    bindEvents() {
-        this.handleKeyPress = (e) => {
-            if (!this.isActive) return;
-
-            let moved = false;
-            switch(e.key) {
-                case 'ArrowUp':
-                    moved = this.move('up');
-                    break;
-                case 'ArrowDown':
-                    moved = this.move('down');
-                    break;
-                case 'ArrowLeft':
-                    moved = this.move('left');
-                    break;
-                case 'ArrowRight':
-                    moved = this.move('right');
-                    break;
-                default:
-                    return;
-            }
-
-            if (moved) {
-                this.moves++;
-                this.addNewTile();
-                this.updateGrid();
-                this.checkGameStatus();
-            }
-        };
-
-        document.addEventListener('keydown', this.handleKeyPress);
-        this.isActive = true;
-    }
-
-    move(direction) {
-        let moved = false;
-        const newGrid = JSON.parse(JSON.stringify(this.grid));
-
-        switch(direction) {
-            case 'up':
-                moved = this.moveVertical(newGrid, true);
-                break;
-            case 'down':
-                moved = this.moveVertical(newGrid, false);
-                break;
-            case 'left':
-                moved = this.moveHorizontal(newGrid, true);
-                break;
-            case 'right':
-                moved = this.moveHorizontal(newGrid, false);
-                break;
-        }
-
-        if (moved) {
-            this.grid = newGrid;
-            return true;
-        }
-        return false;
-    }
-
-    moveHorizontal(grid, left) {
-        let moved = false;
-        
-        for (let i = 0; i < 4; i++) {
-            let row = grid[i].filter(cell => cell !== 0);
-            let merged = [];
-
-            if (left) {
-                for (let j = 0; j < row.length - 1; j++) {
-                    if (row[j] === row[j + 1] && !merged.includes(j)) {
-                        row[j] *= 2;
-                        this.score += row[j];
-                        this.highestTile = Math.max(this.highestTile, row[j]);
-                        row.splice(j + 1, 1);
-                        merged.push(j);
-                        moved = true;
-                    }
-                }
-                while (row.length < 4) row.push(0);
-            } else {
-                for (let j = row.length - 1; j > 0; j--) {
-                    if (row[j] === row[j - 1] && !merged.includes(j)) {
-                        row[j] *= 2;
-                        this.score += row[j];
-                        this.highestTile = Math.max(this.highestTile, row[j]);
-                        row.splice(j - 1, 1);
-                        merged.push(j);
-                        moved = true;
-                    }
-                }
-                while (row.length < 4) row.unshift(0);
-            }
-
-            if (JSON.stringify(grid[i]) !== JSON.stringify(row)) {
-                moved = true;
-                grid[i] = row;
-            }
-        }
-        return moved;
-    }
-
-    moveVertical(grid, up) {
-        let moved = false;
-        
-        for (let j = 0; j < 4; j++) {
-            let column = grid.map(row => row[j]).filter(cell => cell !== 0);
-            let merged = [];
-
-            if (up) {
-                for (let i = 0; i < column.length - 1; i++) {
-                    if (column[i] === column[i + 1] && !merged.includes(i)) {
-                        column[i] *= 2;
-                        this.score += column[i];
-                        this.highestTile = Math.max(this.highestTile, column[i]);
-                        column.splice(i + 1, 1);
-                        merged.push(i);
-                        moved = true;
-                    }
-                }
-                while (column.length < 4) column.push(0);
-            } else {
-                for (let i = column.length - 1; i > 0; i--) {
-                    if (column[i] === column[i - 1] && !merged.includes(i)) {
-                        column[i] *= 2;
-                        this.score += column[i];
-                        this.highestTile = Math.max(this.highestTile, column[i]);
-                        column.splice(i - 1, 1);
-                        merged.push(i);
-                        moved = true;
-                    }
-                }
-                while (column.length < 4) column.unshift(0);
-            }
-
-            if (moved) {
-                for (let i = 0; i < 4; i++) {
-                    grid[i][j] = column[i];
-                }
-            }
-        }
-        return moved;
-    }
-
-    addNewTile() {
-        const emptyCells = [];
-        for (let i = 0; i < 4; i++) {
-            for (let j = 0; j < 4; j++) {
-                if (this.grid[i][j] === 0) {
-                    emptyCells.push({i, j});
-                }
-            }
-        }
-
-        if (emptyCells.length > 0) {
-            const {i, j} = emptyCells[Math.floor(Math.random() * emptyCells.length)];
-            this.grid[i][j] = Math.random() < 0.9 ? 2 : 4;
-        }
-    }
-
-    updateGrid() {
-        const gridElement = document.querySelector('.game-grid');
-        for (let i = 0; i < 4; i++) {
-            for (let j = 0; j < 4; j++) {
-                const cell = gridElement.children[i].children[j];
-                const value = this.grid[i][j];
-                cell.textContent = value || '';
-                cell.className = `grid-cell tile-${value}`;
-                if (value) {
-                    cell.classList.add('tile-pop');
-                    setTimeout(() => cell.classList.remove('tile-pop'), 300);
-                }
-            }
-        }
-
-        document.getElementById('current-score').textContent = this.score;
-        document.getElementById('moves-left').textContent = this.levelData.moves - this.moves;
-    }
-
-    checkGameStatus() {
-        if (this.highestTile >= this.levelData.target) {
-            this.completeGame();
-            return;
-        }
-
-        if (this.moves >= this.levelData.moves) {
-            this.failGame();
-            return;
-        }
-
-        if (!this.hasValidMoves()) {
-            this.failGame();
-        }
-    }
-
-    hasValidMoves() {
-        // Check for empty cells
-        if (this.grid.some(row => row.some(cell => cell === 0))) {
-            return true;
-        }
-
-        // Check for possible merges
-        for (let i = 0; i < 4; i++) {
-            for (let j = 0; j < 4; j++) {
-                const current = this.grid[i][j];
-                if ((j < 3 && current === this.grid[i][j + 1]) ||
-                    (i < 3 && current === this.grid[i + 1][j])) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    completeGame() {
-        this.isActive = false;
-        const moveBonus = Math.max(0, this.levelData.moves - this.moves) * 5;
-        const totalPoints = this.levelData.points + moveBonus;
-        
-        playSound('success');
-        this.showCompletionDialog(totalPoints, moveBonus);
-    }
-
-    failGame() {
-        this.isActive = false;
-        playSound('fail');
-        this.showFailDialog();
-    }
-
-    showCompletionDialog(totalPoints, moveBonus) {
-        const dialog = document.createElement('div');
-        dialog.className = 'completion-dialog';
-        dialog.innerHTML = `
-            <div class="dialog-content">
-                <h2>Level Complete! 🎉</h2>
-                <div class="stats-summary">
-                    <p>Highest Tile: ${this.highestTile}</p>
-                    <p>Moves Used: ${this.moves}</p>
-                    <p>Score: ${this.score}</p>
-                </div>
-                <div class="points-breakdown">
-                    <p>Base Points: ${this.levelData.points}</p>
-                    <p>Move Bonus: +${moveBonus}</p>
-                    <p class="total-points">Total Points: ${totalPoints}</p>
-                </div>
-                <button onclick="updateScore(${totalPoints})" class="game-button">Continue</button>
-            </div>
-        `;
-        document.getElementById('active-game-container').appendChild(dialog);
-    }
-
-    showFailDialog() {
-        const dialog = document.createElement('div');
-        dialog.className = 'completion-dialog failure';
-        dialog.innerHTML = `
-            <div class="dialog-content">
-                <h2>Game Over!</h2>
-                <div class="stats-summary">
-                    <p>Highest Tile: ${this.highestTile}</p>
-                    <p>Target: ${this.levelData.target}</p>
-                    <p>Score: ${this.score}</p>
-                </div>
-                <div class="action-buttons">
-                    <button onclick="retryGame()" class="game-button">Try Again</button>
-                    <button onclick="returnToSelection()" class="game-button secondary">Exit</button>
-                </div>
-            </div>
-        `;
-        document.getElementById('active-game-container').appendChild(dialog);
-    }
-
-    restart() {
-        this.grid = Array(4).fill().map(() => Array(4).fill(0));
-        this.score = 0;
-        this.moves = 0;
-        this.highestTile = 0;
-        this.isActive = true;
-        this.initialize();
-    }
-
-    cleanup() {
-        document.removeEventListener('keydown', this.handleKeyPress);
-    }
-}
+// Export configurations and factory
+window.MENTAL_GAMES = MENTAL_GAMES;
+window.MentalGameFactory = MentalGameFactory;
 
 // Color Match Game
-class ColorMatch {
-    constructor(level) {
+class ColorMatchGame extends MentalGameBase {
+    constructor(level, gameManager) {
+        super(gameManager);
         this.level = level;
-        this.levelData = mentalGames.colorMatch.levels[level - 1];
-        this.colors = [
-            '#FF5252', '#4CAF50', '#2196F3', '#FFC107',
-            '#9C27B0', '#FF9800', '#00BCD4', '#795548'
-        ].slice(0, this.levelData.colors);
-        this.sequence = [];
-        this.playerSequence = [];
-        this.isActive = false;
+        this.levelData = MENTAL_GAMES.colorMatch.levels[level - 1];
         this.score = 0;
         this.timeLeft = this.levelData.time;
-    }
+        this.patterns = [];
+        this.currentPattern = null;
+        this.selectedColors = [];
+        this.matchesMade = 0;
+        this.streakCount = 0;
 
-    initialize() {
-        this.renderUI();
-        this.bindEvents();
-        playSound('newLevel');
+        this.colors = [
+            { name: 'red', code: '#FF5252', emoji: '❤️' },
+            { name: 'blue', code: '#2196F3', emoji: '💙' },
+            { name: 'green', code: '#4CAF50', emoji: '💚' },
+            { name: 'yellow', code: '#FFC107', emoji: '💛' },
+            { name: 'purple', code: '#9C27B0', emoji: '💜' },
+            { name: 'orange', code: '#FF9800', emoji: '🧡' }
+        ];
     }
 
     renderUI() {
@@ -440,62 +140,81 @@ class ColorMatch {
         container.innerHTML = `
             <div class="color-match-game">
                 <div class="game-header">
-                    <h2>${this.levelData.name}</h2>
                     <div class="game-stats">
-                        <div class="stat">
-                            <i class="fas fa-clock"></i>
-                            Time: <span id="time-left">${this.timeLeft}</span>s
-                        </div>
-                        <div class="stat">
-                            <i class="fas fa-star"></i>
-                            Score: <span id="current-score">${this.score}</span>
-                        </div>
+                        <span class="time">⏰ <span id="time-left">${this.timeLeft}</span>s</span>
+                        <span class="score">✨ <span id="current-score">${this.score}</span></span>
+                        <span class="streak">🔥 x<span id="streak-count">0</span></span>
                     </div>
                 </div>
 
                 <div class="game-area">
-                    <div id="pattern-display" class="pattern-display"></div>
-                    <div id="color-buttons" class="color-buttons">
-                        ${this.colors.map((color, index) => `
-                            <button 
-                                class="color-btn" 
-                                data-color="${index}"
-                                style="background-color: ${color}">
-                            </button>
-                        `).join('')}
+                    <div class="pattern-display">
+                        <div id="target-pattern" class="pattern"></div>
+                        <div class="pattern-label">Match this pattern!</div>
+                    </div>
+
+                    <div class="color-grid" id="color-grid"></div>
+
+                    <div class="selected-colors">
+                        <div id="selected-pattern" class="pattern"></div>
+                        <div class="pattern-label">Your selection</div>
                     </div>
                 </div>
 
                 <div class="controls">
-                    <button id="start-btn" class="game-button">Start Round</button>
-                    <div class="instructions">
-                        <p>Watch the pattern and repeat it</p>
-                        <p>Pattern length increases with each success</p>
-                    </div>
+                    <button id="start-btn" class="game-button">Start Matching!</button>
+                    <button id="clear-btn" class="game-button secondary hidden">Clear Selection</button>
                 </div>
+
+                <div id="feedback" class="feedback-message"></div>
             </div>
         `;
 
-        document.getElementById('start-btn').addEventListener('click', () => this.startRound());
+        this.setupGame();
     }
 
-    bindEvents() {
-        document.getElementById('color-buttons').addEventListener('click', (e) => {
-            if (e.target.classList.contains('color-btn')) {
-                const colorIndex = parseInt(e.target.dataset.color);
-                this.handleColorClick(colorIndex);
+    setupGame() {
+        this.generatePatterns();
+        this.renderColorGrid();
+
+        document.getElementById('start-btn').addEventListener('click', () => this.startGame());
+        document.getElementById('clear-btn').addEventListener('click', () => this.clearSelection());
+    }
+
+    generatePatterns() {
+        const patternLength = this.level + 2; // Increases with level
+        for (let i = 0; i < this.levelData.pairs * 2; i++) {
+            let pattern = [];
+            for (let j = 0; j < patternLength; j++) {
+                pattern.push(this.colors[Math.floor(Math.random() * this.colors.length)]);
             }
+            this.patterns.push(pattern);
+        }
+        this.patterns = gameUtils.MathUtils.shuffleArray(this.patterns);
+    }
+
+    renderColorGrid() {
+        const grid = document.getElementById('color-grid');
+        this.colors.forEach(color => {
+            const colorBtn = document.createElement('button');
+            colorBtn.className = 'color-button';
+            colorBtn.style.backgroundColor = color.code;
+            colorBtn.innerHTML = color.emoji;
+            colorBtn.addEventListener('click', () => this.selectColor(color));
+            grid.appendChild(colorBtn);
         });
     }
 
-    startRound() {
+    startGame() {
         this.isActive = true;
-        document.getElementById('start-btn').style.display = 'none';
-        
-        this.generateSequence();
-        this.showSequence();
-        
-        // Start timer
+        document.getElementById('start-btn').classList.add('hidden');
+        document.getElementById('clear-btn').classList.remove('hidden');
+        this.showNextPattern();
+        this.startTimer();
+        this.audioManager.play('NewLevel');
+    }
+
+    startTimer() {
         this.timer = setInterval(() => {
             this.timeLeft--;
             document.getElementById('time-left').textContent = this.timeLeft;
@@ -506,185 +225,168 @@ class ColorMatch {
         }, 1000);
     }
 
-    generateSequence() {
-        const length = Math.min(3 + Math.floor(this.score / 50), 8);
-        this.sequence = Array(length).fill(0)
-            .map(() => Math.floor(Math.random() * this.colors.length));
+    selectColor(color) {
+        if (!this.isActive || this.selectedColors.length >= this.currentPattern.length) return;
+
+        this.selectedColors.push(color);
+        this.updateSelectedPattern();
+        
+        if (this.selectedColors.length === this.currentPattern.length) {
+            this.checkMatch();
+        }
     }
 
-    showSequence() {
-        const display = document.getElementById('pattern-display');
-        let i = 0;
-        
-        const showNext = () => {
-            if (i < this.sequence.length) {
-                display.style.backgroundColor = this.colors[this.sequence[i]];
-                setTimeout(() => {
-                    display.style.backgroundColor = '#fff';
-                    setTimeout(showNext, 300);
-                }, 700);
-                i++;
-            } else {
-                this.playerSequence = [];
-                display.style.backgroundColor = '#fff';
-            }
-        };
-        
-        showNext();
+    updateSelectedPattern() {
+        const pattern = document.getElementById('selected-pattern');
+        pattern.innerHTML = this.selectedColors.map(color => `
+            <div class="color-dot" style="background-color: ${color.code}">
+                ${color.emoji}
+            </div>
+        `).join('');
     }
 
-    handleColorClick(colorIndex) {
-        if (!this.isActive) return;
-
-        const display = document.getElementById('pattern-display');
-        display.style.backgroundColor = this.colors[colorIndex];
-        setTimeout(() => display.style.backgroundColor = '#fff', 200);
-
-        const expectedColor = this.sequence[this.playerSequence.length];
-        this.playerSequence.push(colorIndex);
-
-        if (colorIndex !== expectedColor) {
-            this.failRound();
+    showNextPattern() {
+        this.currentPattern = this.patterns.pop();
+        if (!this.currentPattern) {
+            this.completeGame();
             return;
         }
 
-        if (this.playerSequence.length === this.sequence.length) {
-            this.completeRound();
+        const pattern = document.getElementById('target-pattern');
+        pattern.innerHTML = this.currentPattern.map(color => `
+            <div class="color-dot" style="background-color: ${color.code}">
+                ${color.emoji}
+            </div>
+        `).join('');
+    }
+
+    checkMatch() {
+        let isMatch = true;
+        for (let i = 0; i < this.currentPattern.length; i++) {
+            if (this.selectedColors[i].name !== this.currentPattern[i].name) {
+                isMatch = false;
+                break;
+            }
         }
+
+        if (isMatch) {
+            this.handleCorrectMatch();
+        } else {
+            this.handleIncorrectMatch();
+        }
+
+        setTimeout(() => {
+            this.selectedColors = [];
+            this.updateSelectedPattern();
+            this.showNextPattern();
+        }, 1000);
     }
 
-    completeRound() {
-        this.score += this.sequence.length * 10;
+    handleCorrectMatch() {
+        this.streakCount++;
+        this.matchesMade++;
+        const streakBonus = Math.min(5, Math.floor(this.streakCount / 3));
+        const points = 10 * (1 + streakBonus);
+        this.score += points;
+
         document.getElementById('current-score').textContent = this.score;
-        playSound('goodResult');
+        document.getElementById('streak-count').textContent = this.streakCount;
         
-        setTimeout(() => {
-            if (this.score >= this.levelData.points) {
-                this.completeGame();
-            } else {
-                this.startRound();
-            }
-        }, 1000);
+        this.showFeedback(`Perfect Match! +${points} points! 🎯`, 'success');
+        this.audioManager.play('GoodResult');
     }
 
-    failRound() {
-        playSound('fail');
-        const display = document.getElementById('pattern-display');
-        display.style.backgroundColor = '#FF0000';
+    handleIncorrectMatch() {
+        this.streakCount = 0;
+        document.getElementById('streak-count').textContent = this.streakCount;
+        this.showFeedback('Wrong pattern! Try again! 😅', 'error');
+        this.audioManager.play('Fail');
+    }
+
+    showFeedback(message, type) {
+        const feedback = document.getElementById('feedback');
+        feedback.textContent = message;
+        feedback.className = `feedback-message ${type}`;
+        feedback.classList.add('show');
         
         setTimeout(() => {
-            display.style.backgroundColor = '#fff';
-            if (this.score >= this.levelData.points) {
-                this.completeGame();
-            } else {
-                this.startRound();
-            }
-        }, 1000);
+            feedback.classList.remove('show');
+        }, 2000);
+    }
+
+    clearSelection() {
+        this.selectedColors = [];
+        this.updateSelectedPattern();
     }
 
     completeGame() {
         this.isActive = false;
         clearInterval(this.timer);
-        
+
         const timeBonus = this.timeLeft * 2;
-        const totalPoints = this.levelData.points + timeBonus;
-        
-        playSound('success');
-        this.showCompletionDialog(totalPoints, timeBonus);
+        const accuracyBonus = Math.floor((this.matchesMade / this.levelData.pairs) * 100);
+        const totalPoints = this.score + timeBonus + accuracyBonus;
+
+        const dialog = gameUtils.UIUtils.createDialog(
+            "Level Complete! 🎉",
+            {
+                "Matches Made": `${this.matchesMade}/${this.levelData.pairs}`,
+                "Longest Streak": this.streakCount,
+                "Time Remaining": `${this.timeLeft}s`
+            },
+            {
+                "Pattern Points": this.score,
+                "Time Bonus": timeBonus,
+                "Accuracy Bonus": accuracyBonus
+            }
+        );
+
+        document.getElementById('active-game-container').appendChild(dialog);
     }
 
     endGame() {
         this.isActive = false;
         clearInterval(this.timer);
-        
-        if (this.score >= this.levelData.points) {
-            this.completeGame();
-        } else {
-            this.showFailDialog();
-        }
-    }
 
-    showCompletionDialog(totalPoints, timeBonus) {
-        const dialog = document.createElement('div');
-        dialog.className = 'completion-dialog';
-        dialog.innerHTML = `
-            <div class="dialog-content">
-                <h2>Level Complete! 🎉</h2>
-                <div class="stats-summary">
-                    <p>Score: ${this.score}</p>
-                    <p>Time Remaining: ${this.timeLeft}s</p>
-                </div>
-                <div class="points-breakdown">
-                    <p>Base Points: ${this.levelData.points}</p>
-                    <p>Time Bonus: +${timeBonus}</p>
-                    <p class="total-points">Total Points: ${totalPoints}</p>
-                </div>
-                <button onclick="updateScore(${totalPoints})" class="game-button">Continue</button>
-            </div>
-        `;
-        document.getElementById('active-game-container').appendChild(dialog);
-    }
+        const dialog = gameUtils.UIUtils.createDialog(
+            "Time's Up!",
+            {
+                "Final Score": this.score,
+                "Matches Made": `${this.matchesMade}/${this.levelData.pairs}`,
+                "Best Streak": this.streakCount
+            },
+            null,
+            true
+        );
 
-    showFailDialog() {
-        const dialog = document.createElement('div');
-        dialog.className = 'completion-dialog failure';
-        dialog.innerHTML = `
-            <div class="dialog-content">
-                <h2>Time's Up!</h2>
-                <div class="stats-summary">
-                    <p>Final Score: ${this.score}</p>
-                    <p>Target Score: ${this.levelData.points}</p>
-                </div>
-                <div class="action-buttons">
-                    <button onclick="retryGame()" class="game-button">Try Again</button>
-                    <button onclick="returnToSelection()" class="game-button secondary">Exit</button>
-                </div>
-            </div>
-        `;
         document.getElementById('active-game-container').appendChild(dialog);
     }
 
     cleanup() {
+        super.cleanup();
         clearInterval(this.timer);
     }
 }
 
 // Memory Tiles Game
-class MemoryTiles {
-    constructor(level) {
+class MemoryTilesGame extends MentalGameBase {
+    constructor(level, gameManager) {
+        super(gameManager);
         this.level = level;
-        this.levelData = mentalGames.memoryTiles.levels[level - 1];
+        this.levelData = MENTAL_GAMES.memoryTiles.levels[level - 1];
         this.tiles = [];
         this.flippedTiles = [];
         this.matchedPairs = 0;
         this.moves = 0;
-        this.isActive = false;
         this.timeLeft = this.levelData.time;
-        this.timer = null;
-    }
+        this.canFlip = false;
 
-    initialize() {
-        this.createTiles();
-        this.renderUI();
-        this.bindEvents();
-        playSound('newLevel');
-    }
-
-    createTiles() {
-        const emojis = ['🎮', '🎨', '🎲', '🎯', '🎪', '🎭', '🎸', '🎺', '🎨', '🎪', '🎭', '🎲'];
-        this.tiles = Array(this.levelData.pairs * 2).fill(null)
-            .map((_, index) => ({
-                id: index,
-                emoji: emojis[Math.floor(index / 2)],
-                isFlipped: false,
-                isMatched: false
-            }));
-        
-        // Shuffle tiles
-        for (let i = this.tiles.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [this.tiles[i], this.tiles[j]] = [this.tiles[j], this.tiles[i]];
-        }
+        // Memory tile emojis
+        this.tileEmojis = [
+            '🌟', '🌈', '🌺', '🌸', '🍀', '🦋', 
+            '🐬', '🦄', '🌙', '🌞', '🎨', '🎭',
+            '🎪', '🎡', '🎮', '🎲', '🎯', '🎭'
+        ];
     }
 
     renderUI() {
@@ -692,192 +394,1190 @@ class MemoryTiles {
         container.innerHTML = `
             <div class="memory-game">
                 <div class="game-header">
-                    <h2>${this.levelData.name}</h2>
                     <div class="game-stats">
-                        <div class="stat">
-                            <i class="fas fa-clock"></i>
-                            Time: <span id="time-left">${this.timeLeft}</span>s
-                        </div>
-                        <div class="stat">
-                            <i class="fas fa-sync"></i>
-                            Moves: <span id="move-count">0</span>
-                        </div>
-                        <div class="stat">
-                            <i class="fas fa-puzzle-piece"></i>
-                            Pairs: <span id="pairs-found">0</span>/${this.levelData.pairs}
-                        </div>
+                        <span>⏰ <span id="time-left">${this.timeLeft}</span>s</span>
+                        <span>🔄 Moves: <span id="moves-count">0</span></span>
+                        <span>✨ Pairs: <span id="pairs-count">0</span>/${this.levelData.tiles / 2}</span>
                     </div>
                 </div>
 
-                <div class="tiles-grid">
-                    ${this.tiles.map(tile => `
-                        <div class="tile" data-id="${tile.id}">
-                            <div class="tile-inner">
-                                <div class="tile-front"></div>
-                                <div class="tile-back">${tile.emoji}</div>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
+                <div class="memory-board" id="memory-board"></div>
 
                 <div class="controls">
                     <button id="start-btn" class="game-button">Start Game</button>
                     <div class="instructions">
                         <p>Find matching pairs of tiles</p>
-                        <p>Remember locations for better score</p>
+                        <p>Remember their positions!</p>
                     </div>
                 </div>
             </div>
         `;
 
+        this.setupGame();
+    }
+
+    setupGame() {
+        this.createTiles();
+        this.renderBoard();
+        
+        document.getElementById('start-btn').addEventListener('click', () => {
+            this.startGame();
+        });
+    }
+
+    createTiles() {
+        // Select emojis for this level
+        const levelEmojis = this.tileEmojis.slice(0, this.levelData.tiles / 2);
+        
+        // Create pairs
+        this.tiles = [...levelEmojis, ...levelEmojis].map((emoji, index) => ({
+            id: index,
+            emoji: emoji,
+            isFlipped: false,
+            isMatched: false
+        }));
+
+        // Shuffle tiles
+        this.tiles = gameUtils.MathUtils.shuffleArray(this.tiles);
+    }
+
+    renderBoard() {
+        const board = document.getElementById('memory-board');
+        board.innerHTML = '';
+        
+        // Calculate grid size
+        const cols = Math.ceil(Math.sqrt(this.tiles.length));
+        board.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+
+        this.tiles.forEach(tile => {
+            const tileElement = document.createElement('div');
+            tileElement.className = 'memory-tile';
+            tileElement.dataset.id = tile.id;
+            
+            tileElement.innerHTML = `
+                <div class="tile-inner">
+                    <div class="tile-front">❓</div>
+                    <div class="tile-back">${tile.emoji}</div>
+                </div>
+            `;
+
+            tileElement.addEventListener('click', () => this.flipTile(tile.id));
+            board.appendChild(tileElement);
+        });
+    }
+
+    startGame() {
+        this.isActive = true;
+        this.canFlip = true;
+        document.getElementById('start-btn').style.display = 'none';
+        this.audioManager.play('NewLevel');
+        this.startTimer();
+
+        // Show all tiles briefly
+        this.showAllTiles();
+    }
+
+    showAllTiles() {
+        this.canFlip = false;
+        const tiles = document.querySelectorAll('.memory-tile');
+        tiles.forEach(tile => tile.classList.add('flipped'));
+
+        setTimeout(() => {
+            tiles.forEach(tile => tile.classList.remove('flipped'));
+            this.canFlip = true;
+        }, 2000);
+    }
+
+    startTimer() {
+        this.timer = setInterval(() => {
+            this.timeLeft--;
+            document.getElementById('time-left').textContent = this.timeLeft;
+            
+            if (this.timeLeft <= 0) {
+                this.endGame('timeout');
+            }
+        }, 1000);
+    }
+
+    flipTile(id) {
+        if (!this.canFlip || !this.isActive) return;
+        
+        const tile = this.tiles[id];
+        const tileElement = document.querySelector(`[data-id="${id}"]`);
+
+        // Prevent flipping if tile is already flipped or matched
+        if (tile.isFlipped || tile.isMatched) return;
+        
+        // Prevent flipping more than 2 tiles
+        if (this.flippedTiles.length >= 2) return;
+
+        // Flip the tile
+        tile.isFlipped = true;
+        tileElement.classList.add('flipped');
+        this.flippedTiles.push({ tile, element: tileElement });
+
+        this.audioManager.play('Success');
+
+        if (this.flippedTiles.length === 2) {
+            this.moves++;
+            document.getElementById('moves-count').textContent = this.moves;
+            this.checkMatch();
+        }
+    }
+
+    checkMatch() {
+        this.canFlip = false;
+        const [first, second] = this.flippedTiles;
+
+        if (first.tile.emoji === second.tile.emoji) {
+            // Match found
+            setTimeout(() => {
+                first.element.classList.add('matched');
+                second.element.classList.add('matched');
+                first.tile.isMatched = second.tile.isMatched = true;
+                this.matchedPairs++;
+                document.getElementById('pairs-count').textContent = this.matchedPairs;
+                
+                this.audioManager.play('GoodResult');
+                this.showFeedback('Match found! 🎉', 'success');
+
+                this.flippedTiles = [];
+                this.canFlip = true;
+
+                if (this.matchedPairs === this.levelData.tiles / 2) {
+                    this.completeGame();
+                }
+            }, 500);
+        } else {
+            // No match
+            setTimeout(() => {
+                first.element.classList.remove('flipped');
+                second.element.classList.remove('flipped');
+                first.tile.isFlipped = second.tile.isFlipped = false;
+                this.flippedTiles = [];
+                this.canFlip = true;
+                
+                this.audioManager.play('Fail');
+                this.showFeedback('Try again! 🤔', 'error');
+            }, 1000);
+        }
+    }
+
+    showFeedback(message, type) {
+        const feedback = document.createElement('div');
+        feedback.className = `memory-feedback ${type}`;
+        feedback.textContent = message;
+        
+        document.querySelector('.memory-game').appendChild(feedback);
+        
+        setTimeout(() => feedback.remove(), 1000);
+    }
+
+    completeGame() {
+        this.isActive = false;
+        clearInterval(this.timer);
+
+        const timeBonus = this.timeLeft * 5;
+        const movesBonus = Math.max(0, 100 - (this.moves - this.levelData.tiles) * 2);
+        const totalPoints = this.levelData.points + timeBonus + movesBonus;
+
+        const dialog = gameUtils.UIUtils.createDialog(
+            "Memory Master! 🎉",
+            {
+                "Pairs Found": `${this.matchedPairs}/${this.levelData.tiles / 2}`,
+                "Moves Made": this.moves,
+                "Time Left": `${this.timeLeft}s`
+            },
+            {
+                "Base Points": this.levelData.points,
+                "Time Bonus": timeBonus,
+                "Efficiency Bonus": movesBonus
+            }
+        );
+
+        document.getElementById('active-game-container').appendChild(dialog);
+    }
+
+    endGame(reason) {
+        this.isActive = false;
+        clearInterval(this.timer);
+
+        const dialog = gameUtils.UIUtils.createDialog(
+            reason === 'timeout' ? "Time's Up!" : "Game Over",
+            {
+                "Pairs Found": `${this.matchedPairs}/${this.levelData.tiles / 2}`,
+                "Moves Made": this.moves,
+                "Final Score": this.calculateScore()
+            },
+            null,
+            true
+        );
+
+        document.getElementById('active-game-container').appendChild(dialog);
+    }
+
+    calculateScore() {
+        return Math.floor(
+            (this.matchedPairs / (this.levelData.tiles / 2)) * this.levelData.points
+        );
+    }
+
+    cleanup() {
+        super.cleanup();
+        clearInterval(this.timer);
+    }
+}
+
+// Update MentalGameFactory
+MentalGameFactory.createGame = function(gameId, level, gameManager) {
+    switch(gameId) {
+        case 'colorMatch':
+            return new ColorMatchGame(level, gameManager);
+        case 'memoryTiles':
+            return new MemoryTilesGame(level, gameManager);
+        // Other games will be added here
+        default:
+            throw new Error(`Unknown game: ${gameId}`);
+    }
+};
+
+// 2048 Game
+class Puzzle2048Game extends MentalGameBase {
+    constructor(level, gameManager) {
+        super(gameManager);
+        this.level = level;
+        this.levelData = MENTAL_GAMES.puzzle2048.levels[level - 1];
+        this.grid = Array(4).fill().map(() => Array(4).fill(0));
+        this.score = 0;
+        this.moves = 0;
+        this.maxMoves = this.levelData.moves;
+        this.highestTile = 0;
+        this.canMove = false;
+    }
+
+    renderUI() {
+        const container = document.getElementById('active-game-container');
+        container.innerHTML = `
+            <div class="puzzle-2048">
+                <div class="game-header">
+                    <div class="game-stats">
+                        <span>🎯 Target: ${this.levelData.target}</span>
+                        <span>🔄 Moves: <span id="moves-left">${this.maxMoves}</span></span>
+                        <span>✨ Score: <span id="current-score">0</span></span>
+                    </div>
+                </div>
+
+                <div class="game-board">
+                    <div class="grid-container">
+                        ${this.createGrid()}
+                    </div>
+                </div>
+
+                <div class="game-controls">
+                    <div class="arrow-controls">
+                        <button class="control-btn up" data-direction="up">⬆️</button>
+                        <div class="horizontal-controls">
+                            <button class="control-btn left" data-direction="left">⬅️</button>
+                            <button class="control-btn right" data-direction="right">➡️</button>
+                        </div>
+                        <button class="control-btn down" data-direction="down">⬇️</button>
+                    </div>
+                    <button id="start-btn" class="game-button">Start Game</button>
+                </div>
+
+                <div class="instructions">
+                    <p>Use arrow keys or buttons to move tiles</p>
+                    <p>Combine matching numbers to reach ${this.levelData.target}!</p>
+                </div>
+            </div>
+        `;
+
+        this.setupGame();
+    }
+
+    createGrid() {
+        return Array(4).fill().map((_, row) => `
+            <div class="grid-row">
+                ${Array(4).fill().map((_, col) => `
+                    <div class="grid-cell" data-row="${row}" data-col="${col}">
+                        <div class="tile"></div>
+                    </div>
+                `).join('')}
+            </div>
+        `).join('');
+    }
+
+    setupGame() {
+        this.bindEvents();
         document.getElementById('start-btn').addEventListener('click', () => this.startGame());
     }
 
     bindEvents() {
-        const tilesGrid = document.querySelector('.tiles-grid');
-        tilesGrid.addEventListener('click', (e) => {
-            const tile = e.target.closest('.tile');
-            if (tile && this.isActive) {
-                this.flipTile(parseInt(tile.dataset.id));
+        // Keyboard controls
+        this.handleKeyDown = (e) => {
+            if (!this.canMove) return;
+
+            switch(e.key) {
+                case 'ArrowUp':
+                    e.preventDefault();
+                    this.move('up');
+                    break;
+                case 'ArrowDown':
+                    e.preventDefault();
+                    this.move('down');
+                    break;
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    this.move('left');
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    this.move('right');
+                    break;
             }
+        };
+
+        document.addEventListener('keydown', this.handleKeyDown);
+
+        // Touch controls
+        document.querySelectorAll('.control-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (this.canMove) {
+                    this.move(btn.dataset.direction);
+                }
+            });
+        });
+    }
+
+    startGame() {
+        this.canMove = true;
+        document.getElementById('start-btn').style.display = 'none';
+        this.audioManager.play('NewLevel');
+        this.addNewTile();
+        this.addNewTile();
+        this.updateGrid();
+    }
+
+    addNewTile() {
+        const emptyCells = [];
+        this.grid.forEach((row, i) => {
+            row.forEach((cell, j) => {
+                if (cell === 0) emptyCells.push([i, j]);
+            });
+        });
+
+        if (emptyCells.length) {
+            const [row, col] = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+            this.grid[row][col] = Math.random() < 0.9 ? 2 : 4;
+        }
+    }
+
+    move(direction) {
+        const oldGrid = JSON.stringify(this.grid);
+        let moved = false;
+
+        switch(direction) {
+            case 'up':
+                moved = this.moveVertical(-1);
+                break;
+            case 'down':
+                moved = this.moveVertical(1);
+                break;
+            case 'left':
+                moved = this.moveHorizontal(-1);
+                break;
+            case 'right':
+                moved = this.moveHorizontal(1);
+                break;
+        }
+
+        if (moved) {
+            this.moves++;
+            this.maxMoves--;
+            document.getElementById('moves-left').textContent = this.maxMoves;
+            this.addNewTile();
+            this.updateGrid();
+            this.audioManager.play('Success');
+
+            if (this.maxMoves <= 0) {
+                this.endGame('moves');
+            } else if (this.hasWon()) {
+                this.completeGame();
+            } else if (!this.canMakeMove()) {
+                this.endGame('blocked');
+            }
+        }
+    }
+
+    moveHorizontal(direction) {
+        let moved = false;
+        for (let row = 0; row < 4; row++) {
+            const line = this.grid[row].filter(cell => cell !== 0);
+            const merged = [];
+            
+            if (direction === 1) line.reverse();
+
+            for (let i = 0; i < line.length - 1; i++) {
+                if (line[i] === line[i + 1] && !merged.includes(i)) {
+                    line[i] *= 2;
+                    this.updateScore(line[i]);
+                    line.splice(i + 1, 1);
+                    merged.push(i);
+                    moved = true;
+                }
+            }
+
+            if (direction === 1) line.reverse();
+
+            const newLine = Array(4).fill(0);
+            line.forEach((value, index) => {
+                newLine[direction === 1 ? 3 - index : index] = value;
+            });
+
+            if (JSON.stringify(this.grid[row]) !== JSON.stringify(newLine)) {
+                moved = true;
+            }
+            this.grid[row] = newLine;
+        }
+        return moved;
+    }
+
+    moveVertical(direction) {
+        let moved = false;
+        for (let col = 0; col < 4; col++) {
+            let line = this.grid.map(row => row[col]).filter(cell => cell !== 0);
+            const merged = [];
+            
+            if (direction === 1) line.reverse();
+
+            for (let i = 0; i < line.length - 1; i++) {
+                if (line[i] === line[i + 1] && !merged.includes(i)) {
+                    line[i] *= 2;
+                    this.updateScore(line[i]);
+                    line.splice(i + 1, 1);
+                    merged.push(i);
+                    moved = true;
+                }
+            }
+
+            if (direction === 1) line.reverse();
+
+            const newLine = Array(4).fill(0);
+            line.forEach((value, index) => {
+                newLine[direction === 1 ? 3 - index : index] = value;
+            });
+
+            let changed = false;
+            for (let row = 0; row < 4; row++) {
+                if (this.grid[row][col] !== newLine[row]) {
+                    changed = true;
+                }
+                this.grid[row][col] = newLine[row];
+            }
+            if (changed) moved = true;
+        }
+        return moved;
+    }
+
+    updateScore(value) {
+        this.score += value;
+        this.highestTile = Math.max(this.highestTile, value);
+        document.getElementById('current-score').textContent = this.score;
+    }
+
+    updateGrid() {
+        this.grid.forEach((row, i) => {
+            row.forEach((value, j) => {
+                const tile = document.querySelector(
+                    `.grid-cell[data-row="${i}"][data-col="${j}"] .tile`
+                );
+                
+                tile.className = `tile${value ? ' tile-' + value : ''}`;
+                tile.textContent = value || '';
+
+                if (value > 0) {
+                    tile.style.transform = 'scale(1)';
+                } else {
+                    tile.style.transform = 'scale(0)';
+                }
+            });
+        });
+    }
+
+    hasWon() {
+        return this.highestTile >= this.levelData.target;
+    }
+
+    canMakeMove() {
+        // Check for empty cells
+        for (let row = 0; row < 4; row++) {
+            for (let col = 0; col < 4; col++) {
+                if (this.grid[row][col] === 0) return true;
+            }
+        }
+
+        // Check for possible merges
+        for (let row = 0; row < 4; row++) {
+            for (let col = 0; col < 4; col++) {
+                const current = this.grid[row][col];
+                // Check right
+                if (col < 3 && current === this.grid[row][col + 1]) return true;
+                // Check down
+                if (row < 3 && current === this.grid[row + 1][col]) return true;
+            }
+        }
+
+        return false;
+    }
+
+    completeGame() {
+        this.canMove = false;
+        const moveBonus = Math.max(0, (this.levelData.moves - this.moves) * 10);
+        const scoreBonus = Math.floor(this.score / 100);
+        const totalPoints = this.levelData.points + moveBonus + scoreBonus;
+
+        const dialog = gameUtils.UIUtils.createDialog(
+            "Puzzle Complete! 🎉",
+            {
+                "Highest Tile": this.highestTile,
+                "Moves Used": this.moves,
+                "Final Score": this.score
+            },
+            {
+                "Base Points": this.levelData.points,
+                "Move Bonus": moveBonus,
+                "Score Bonus": scoreBonus
+            }
+        );
+
+        document.getElementById('active-game-container').appendChild(dialog);
+    }
+
+    endGame(reason) {
+        this.canMove = false;
+        const dialog = gameUtils.UIUtils.createDialog(
+            reason === 'moves' ? "Out of Moves!" : "No Moves Possible!",
+            {
+                "Highest Tile": this.highestTile,
+                "Moves Used": this.moves,
+                "Final Score": this.score
+            },
+            null,
+            true
+        );
+
+        document.getElementById('active-game-container').appendChild(dialog);
+    }
+
+    cleanup() {
+        super.cleanup();
+        document.removeEventListener('keydown', this.handleKeyDown);
+    }
+}
+
+// Update MentalGameFactory
+MentalGameFactory.createGame = function(gameId, level, gameManager) {
+    switch(gameId) {
+        case 'colorMatch':
+            return new ColorMatchGame(level, gameManager);
+        case 'memoryTiles':
+            return new MemoryTilesGame(level, gameManager);
+        case 'puzzle2048':
+            return new Puzzle2048Game(level, gameManager);
+        // Other games will be added here
+        default:
+            throw new Error(`Unknown game: ${gameId}`);
+    }
+};
+
+// Snake Game
+class SnakeGame extends MentalGameBase {
+    constructor(level, gameManager) {
+        super(gameManager);
+        this.level = level;
+        this.levelData = MENTAL_GAMES.snake.levels[level - 1];
+        this.gridSize = 20;
+        this.snake = [];
+        this.direction = 'right';
+        this.nextDirection = 'right';
+        this.food = null;
+        this.score = 0;
+        this.speed = 200 - (this.levelData.speed * 50);
+        this.gameLoop = null;
+        this.isPaused = false;
+    }
+
+    renderUI() {
+        const container = document.getElementById('active-game-container');
+        container.innerHTML = `
+            <div class="snake-game">
+                <div class="game-header">
+                    <div class="game-stats">
+                        <span>🎯 Target: ${this.levelData.target}</span>
+                        <span>🐍 Length: <span id="snake-length">0</span></span>
+                        <span>✨ Score: <span id="current-score">0</span></span>
+                    </div>
+                </div>
+
+                <div class="game-area">
+                    <canvas id="snake-canvas"></canvas>
+                    <div id="mindful-tip" class="mindful-tip"></div>
+                </div>
+
+                <div class="game-controls">
+                    <div class="control-buttons">
+                        <button class="control-btn" data-direction="up">⬆️</button>
+                        <div class="horizontal-controls">
+                            <button class="control-btn" data-direction="left">⬅️</button>
+                            <button class="control-btn pause-btn">⏸️</button>
+                            <button class="control-btn" data-direction="right">➡️</button>
+                        </div>
+                        <button class="control-btn" data-direction="down">⬇️</button>
+                    </div>
+                    <button id="start-btn" class="game-button">Start Game</button>
+                </div>
+
+                <div class="instructions">
+                    <p>Use arrow keys or buttons to guide the snake</p>
+                    <p>Practice mindful movement</p>
+                </div>
+            </div>
+        `;
+
+        this.setupGame();
+    }
+
+    setupGame() {
+        this.canvas = document.getElementById('snake-canvas');
+        this.ctx = this.canvas.getContext('2d');
+        
+        // Set canvas size
+        this.cellSize = Math.floor(Math.min(400, window.innerWidth - 40) / this.gridSize);
+        this.canvas.width = this.cellSize * this.gridSize;
+        this.canvas.height = this.cellSize * this.gridSize;
+
+        // Initialize snake
+        this.snake = [
+            { x: 10, y: 10 },
+            { x: 9, y: 10 },
+            { x: 8, y: 10 }
+        ];
+
+        this.bindEvents();
+        document.getElementById('start-btn').addEventListener('click', () => this.startGame());
+    }
+
+    bindEvents() {
+        this.handleKeyDown = (e) => {
+            if (!this.isActive) return;
+
+            switch(e.key) {
+                case 'ArrowUp':
+                    if (this.direction !== 'down') this.nextDirection = 'up';
+                    break;
+                case 'ArrowDown':
+                    if (this.direction !== 'up') this.nextDirection = 'down';
+                    break;
+                case 'ArrowLeft':
+                    if (this.direction !== 'right') this.nextDirection = 'left';
+                    break;
+                case 'ArrowRight':
+                    if (this.direction !== 'left') this.nextDirection = 'right';
+                    break;
+                case ' ':
+                    this.togglePause();
+                    break;
+            }
+        };
+
+        document.addEventListener('keydown', this.handleKeyDown);
+
+        // Touch controls
+        document.querySelectorAll('.control-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const direction = btn.dataset.direction;
+                if (!direction) {
+                    if (btn.classList.contains('pause-btn')) this.togglePause();
+                    return;
+                }
+
+                const opposites = { up: 'down', down: 'up', left: 'right', right: 'left' };
+                if (this.direction !== opposites[direction]) {
+                    this.nextDirection = direction;
+                }
+            });
         });
     }
 
     startGame() {
         this.isActive = true;
         document.getElementById('start-btn').style.display = 'none';
-        
-        this.timer = setInterval(() => {
-            this.timeLeft--;
-            document.getElementById('time-left').textContent = this.timeLeft;
-            
-            if (this.timeLeft <= 0) {
-                this.endGame();
-            }
-        }, 1000);
+        this.audioManager.play('NewLevel');
+        this.spawnFood();
+        this.gameLoop = setInterval(() => this.update(), this.speed);
+        this.showMindfulTip();
     }
 
-    flipTile(id) {
-        const tile = this.tiles[id];
-        if (tile.isFlipped || tile.isMatched || this.flippedTiles.length >= 2) return;
+    update() {
+        if (this.isPaused) return;
 
-        tile.isFlipped = true;
-        this.flippedTiles.push(tile);
-        this.updateTileDisplay(id);
+        this.direction = this.nextDirection;
+        const head = { ...this.snake[0] };
 
-        if (this.flippedTiles.length === 2) {
-            this.moves++;
-            document.getElementById('move-count').textContent = this.moves;
-            setTimeout(() => this.checkMatch(), 500);
+        switch(this.direction) {
+            case 'up': head.y--; break;
+            case 'down': head.y++; break;
+            case 'left': head.x--; break;
+            case 'right': head.x++; break;
         }
-    }
 
-    updateTileDisplay(id) {
-        const tile = this.tiles[id];
-        const element = document.querySelector(`[data-id="${id}"]`);
-        
-        if (tile.isMatched) {
-            element.classList.add('matched');
+        // Check collision with walls
+        if (head.x < 0 || head.x >= this.gridSize || 
+            head.y < 0 || head.y >= this.gridSize) {
+            this.endGame('wall');
+            return;
         }
-        element.classList.toggle('flipped', tile.isFlipped);
-    }
 
-    checkMatch() {
-        const [tile1, tile2] = this.flippedTiles;
-        
-        if (tile1.emoji === tile2.emoji) {
-            tile1.isMatched = tile2.isMatched = true;
-            this.matchedPairs++;
-            document.getElementById('pairs-found').textContent = this.matchedPairs;
-            playSound('goodResult');
-            
-            if (this.matchedPairs === this.levelData.pairs) {
-                this.completeGame();
-            }
+        // Check collision with self
+        if (this.snake.some(segment => segment.x === head.x && segment.y === head.y)) {
+            this.endGame('self');
+            return;
+        }
+
+        this.snake.unshift(head);
+
+        // Check food collision
+        if (head.x === this.food.x && head.y === this.food.y) {
+            this.handleFoodCollision();
         } else {
-            tile1.isFlipped = tile2.isFlipped = false;
-            setTimeout(() => {
-                this.updateTileDisplay(tile1.id);
-                this.updateTileDisplay(tile2.id);
-            }, 500);
+            this.snake.pop();
         }
-        
-        this.flippedTiles = [];
+
+        this.draw();
+        this.updateStats();
+    }
+
+    handleFoodCollision() {
+        this.score += 10;
+        this.audioManager.play('GoodResult');
+        this.spawnFood();
+        this.showMindfulTip();
+
+        if (this.snake.length >= this.levelData.target) {
+            this.completeGame();
+        }
+    }
+
+    spawnFood() {
+        do {
+            this.food = {
+                x: Math.floor(Math.random() * this.gridSize),
+                y: Math.floor(Math.random() * this.gridSize)
+            };
+        } while (this.snake.some(segment => 
+            segment.x === this.food.x && segment.y === this.food.y
+        ));
+    }
+
+    draw() {
+        // Clear canvas
+        this.ctx.fillStyle = '#f0f0f0';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // Draw snake
+        this.snake.forEach((segment, index) => {
+            this.ctx.fillStyle = index === 0 ? '#4CAF50' : '#81C784';
+            this.ctx.fillRect(
+                segment.x * this.cellSize,
+                segment.y * this.cellSize,
+                this.cellSize - 1,
+                this.cellSize - 1
+            );
+        });
+
+        // Draw food
+        this.ctx.fillStyle = '#F44336';
+        this.ctx.beginPath();
+        this.ctx.arc(
+            (this.food.x + 0.5) * this.cellSize,
+            (this.food.y + 0.5) * this.cellSize,
+            this.cellSize / 2 - 1,
+            0,
+            Math.PI * 2
+        );
+        this.ctx.fill();
+    }
+
+    updateStats() {
+        document.getElementById('snake-length').textContent = this.snake.length;
+        document.getElementById('current-score').textContent = this.score;
+    }
+
+    showMindfulTip() {
+        const tips = [
+            "Breathe deeply and stay focused",
+            "Move with intention",
+            "Stay present in the moment",
+            "Notice your reactions",
+            "Practice patience"
+        ];
+
+        const tip = document.getElementById('mindful-tip');
+        tip.textContent = tips[Math.floor(Math.random() * tips.length)];
+        tip.classList.add('show');
+        setTimeout(() => tip.classList.remove('show'), 2000);
+    }
+
+    togglePause() {
+        this.isPaused = !this.isPaused;
+        document.querySelector('.pause-btn').textContent = this.isPaused ? '▶️' : '⏸️';
     }
 
     completeGame() {
         this.isActive = false;
-        clearInterval(this.timer);
-        
-        const timeBonus = Math.floor(this.timeLeft * 2);
-        const moveBonus = Math.max(0, 100 - this.moves * 2);
-        const totalPoints = this.levelData.points + timeBonus + moveBonus;
-        
-        playSound('success');
-        this.showCompletionDialog(totalPoints, timeBonus, moveBonus);
-    }
+        clearInterval(this.gameLoop);
 
-    endGame() {
-        this.isActive = false;
-        clearInterval(this.timer);
-        
-        if (this.matchedPairs === this.levelData.pairs) {
-            this.completeGame();
-        } else {
-            playSound('fail');
-            this.showFailDialog();
-        }
-    }
+        const speedBonus = Math.floor(this.levelData.speed * 20);
+        const lengthBonus = (this.snake.length - this.levelData.target) * 5;
+        const totalPoints = this.levelData.points + speedBonus + lengthBonus;
 
-    showCompletionDialog(totalPoints, timeBonus, moveBonus) {
-        const dialog = document.createElement('div');
-        dialog.className = 'completion-dialog';
-        dialog.innerHTML = `
-            <div class="dialog-content">
-                <h2>Level Complete! 🎉</h2>
-                <div class="stats-summary">
-                    <p>Pairs Found: ${this.matchedPairs}/${this.levelData.pairs}</p>
-                    <p>Moves Used: ${this.moves}</p>
-                    <p>Time Remaining: ${this.timeLeft}s</p>
-                </div>
-                <div class="points-breakdown">
-                    <p>Base Points: ${this.levelData.points}</p>
-                    <p>Time Bonus: +${timeBonus}</p>
-                    <p>Efficiency Bonus: +${moveBonus}</p>
-                    <p class="total-points">Total Points: ${totalPoints}</p>
-                </div>
-                <button onclick="updateScore(${totalPoints})" class="game-button">Continue</button>
-            </div>
-        `;
+        const dialog = gameUtils.UIUtils.createDialog(
+            "Snake Master! 🎉",
+            {
+                "Final Length": this.snake.length,
+                "Target Length": this.levelData.target,
+                "Score": this.score
+            },
+            {
+                "Base Points": this.levelData.points,
+                "Speed Bonus": speedBonus,
+                "Extra Length Bonus": lengthBonus
+            }
+        );
+
         document.getElementById('active-game-container').appendChild(dialog);
     }
 
-    showFailDialog() {
-        const dialog = document.createElement('div');
-        dialog.className = 'completion-dialog failure';
-        dialog.innerHTML = `
-            <div class="dialog-content">
-                <h2>Time's Up!</h2>
-                <div class="stats-summary">
-                    <p>Pairs Found: ${this.matchedPairs}/${this.levelData.pairs}</p>
-                    <p>Moves Used: ${this.moves}</p>
-                </div>
-                <div class="action-buttons">
-                    <button onclick="retryGame()" class="game-button">Try Again</button>
-                    <button onclick="returnToSelection()" class="game-button secondary">Exit</button>
-</div>
-        `;
+    endGame(reason) {
+        this.isActive = false;
+        clearInterval(this.gameLoop);
+
+        const messages = {
+            wall: "Hit the wall! Stay within bounds!",
+            self: "Self collision! Mind your path!"
+        };
+
+        const dialog = gameUtils.UIUtils.createDialog(
+            "Game Over!",
+            {
+                "Final Length": this.snake.length,
+                "Reason": messages[reason],
+                "Score": this.score
+            },
+            null,
+            true
+        );
+
         document.getElementById('active-game-container').appendChild(dialog);
     }
 
     cleanup() {
-        clearInterval(this.timer);
+        super.cleanup();
+        clearInterval(this.gameLoop);
+        document.removeEventListener('keydown', this.handleKeyDown);
     }
 }
 
-// Export game components
-window.mentalGames = mentalGames;
-window.startMentalGame = startMentalGame;
-window.Game2048 = Game2048;
-window.ColorMatch = ColorMatch;
-window.MemoryTiles = MemoryTiles;
+// Update MentalGameFactory
+MentalGameFactory.createGame = function(gameId, level, gameManager) {
+    switch(gameId) {
+        case 'colorMatch':
+            return new ColorMatchGame(level, gameManager);
+        case 'memoryTiles':
+            return new MemoryTilesGame(level, gameManager);
+        case 'puzzle2048':
+            return new Puzzle2048Game(level, gameManager);
+        case 'snake':
+            return new SnakeGame(level, gameManager);
+        // Whack-a-Mole will be added next
+        default:
+            throw new Error(`Unknown game: ${gameId}`);
+    }
+};
+
+// Whack-a-Mole Game
+class WhackaMoleGame extends MentalGameBase {
+    constructor(level, gameManager) {
+        super(gameManager);
+        this.level = level;
+        this.levelData = MENTAL_GAMES.whackaMole.levels[level - 1];
+        this.score = 0;
+        this.timeLeft = this.levelData.time;
+        this.hits = 0;
+        this.targetHits = this.levelData.targets;
+        this.currentMole = null;
+        this.moleTimer = null;
+        this.perfectHits = 0;
+        this.grid = 3; // 3x3 grid
+        this.moleSpeed = 1000 - (this.level * 150); // Gets faster with level
+    }
+
+    renderUI() {
+        const container = document.getElementById('active-game-container');
+        container.innerHTML = `
+            <div class="whack-a-mole">
+                <div class="game-header">
+                    <div class="game-stats">
+                        <span>⏰ <span id="time-left">${this.timeLeft}</span>s</span>
+                        <span>🎯 Hits: <span id="hits-count">${this.hits}</span>/${this.targetHits}</span>
+                        <span>✨ Score: <span id="current-score">${this.score}</span></span>
+                    </div>
+                </div>
+
+                <div class="game-area">
+                    <div class="mole-grid">
+                        ${this.createGrid()}
+                    </div>
+                    <div class="stress-meter">
+                        <div class="meter-label">Stress Level</div>
+                        <div class="meter-bar">
+                            <div id="stress-bar" class="meter-fill" style="width: 100%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="controls">
+                    <button id="start-btn" class="game-button">Start Whacking!</button>
+                    <div class="instructions">
+                        <p>Click or tap the moles when they appear</p>
+                        <p>Release stress with every hit!</p>
+                    </div>
+                </div>
+
+                <div id="feedback" class="feedback-message"></div>
+            </div>
+        `;
+
+        this.setupGame();
+    }
+
+    createGrid() {
+        let grid = '';
+        for (let i = 0; i < this.grid; i++) {
+            grid += `<div class="mole-row">`;
+            for (let j = 0; j < this.grid; j++) {
+                grid += `
+                    <div class="mole-hole" data-index="${i * this.grid + j}">
+                        <div class="mole-dirt"></div>
+                        <div class="mole" data-index="${i * this.grid + j}">
+                            <div class="mole-face">😊</div>
+                        </div>
+                    </div>
+                `;
+            }
+            grid += `</div>`;
+        }
+        return grid;
+    }
+
+    setupGame() {
+        this.moles = Array.from(document.querySelectorAll('.mole'));
+        this.holes = Array.from(document.querySelectorAll('.mole-hole'));
+        
+        this.moles.forEach(mole => {
+            mole.addEventListener('click', () => this.whack(mole));
+            mole.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                this.whack(mole);
+            });
+        });
+
+        document.getElementById('start-btn').addEventListener('click', () => this.startGame());
+    }
+
+    startGame() {
+        this.isActive = true;
+        document.getElementById('start-btn').style.display = 'none';
+        this.audioManager.play('NewLevel');
+        this.startTimer();
+        this.showMole();
+    }
+
+    startTimer() {
+        this.gameTimer = setInterval(() => {
+            this.timeLeft--;
+            document.getElementById('time-left').textContent = this.timeLeft;
+
+            // Update stress meter
+            const stressLevel = (this.timeLeft / this.levelData.time) * 100;
+            document.getElementById('stress-bar').style.width = `${stressLevel}%`;
+            
+            if (this.timeLeft <= 0) {
+                this.endGame('timeout');
+            }
+        }, 1000);
+    }
+
+    showMole() {
+        if (!this.isActive) return;
+
+        // Hide previous mole if exists
+        if (this.currentMole !== null) {
+            this.moles[this.currentMole].classList.remove('up');
+        }
+
+        // Select new hole
+        let newHole;
+        do {
+            newHole = Math.floor(Math.random() * this.moles.length);
+        } while (newHole === this.currentMole);
+
+        this.currentMole = newHole;
+        const mole = this.moles[this.currentMole];
+        mole.classList.add('up');
+        mole.dataset.startTime = Date.now();
+
+        // Update mole expression
+        this.updateMoleExpression(mole, '😊');
+
+        // Set disappear timer
+        this.moleTimer = setTimeout(() => {
+            if (this.isActive) {
+                mole.classList.remove('up');
+                this.updateMoleExpression(mole, '😴');
+                this.showMole();
+            }
+        }, this.moleSpeed);
+    }
+
+    whack(mole) {
+        if (!this.isActive || !mole.classList.contains('up')) return;
+
+        const index = parseInt(mole.dataset.index);
+        if (index !== this.currentMole) return;
+
+        // Calculate reaction time and accuracy
+        const reactionTime = Date.now() - parseInt(mole.dataset.startTime);
+        const accuracy = Math.max(0, 1 - (reactionTime / 1000));
+
+        // Update score based on reaction time
+        const points = Math.floor(accuracy * 100);
+        this.score += points;
+        this.hits++;
+
+        // Visual feedback
+        if (accuracy > 0.8) {
+            this.perfectHits++;
+            this.updateMoleExpression(mole, '🤩');
+            this.showFeedback('Perfect hit! +' + points + ' points! 🎯', 'perfect');
+            this.audioManager.play('GoodResult');
+        } else if (accuracy > 0.5) {
+            this.updateMoleExpression(mole, '😵');
+            this.showFeedback('Good hit! +' + points + ' points! ✨', 'good');
+            this.audioManager.play('Success');
+        } else {
+            this.updateMoleExpression(mole, '😫');
+            this.showFeedback('Hit! +' + points + ' points!', 'normal');
+            this.audioManager.play('Success');
+        }
+
+        // Update UI
+        document.getElementById('hits-count').textContent = this.hits;
+        document.getElementById('current-score').textContent = this.score;
+
+        // Hide mole and show next
+        clearTimeout(this.moleTimer);
+        mole.classList.remove('up');
+        
+        // Check win condition
+        if (this.hits >= this.targetHits) {
+            this.completeGame();
+        } else {
+            setTimeout(() => this.showMole(), 500);
+        }
+    }
+
+    updateMoleExpression(mole, expression) {
+        const face = mole.querySelector('.mole-face');
+        face.textContent = expression;
+    }
+
+    showFeedback(message, type) {
+        const feedback = document.getElementById('feedback');
+        feedback.textContent = message;
+        feedback.className = `feedback-message ${type}`;
+        feedback.classList.add('show');
+        
+        setTimeout(() => feedback.classList.remove('show'), 1000);
+    }
+
+    completeGame() {
+        this.isActive = false;
+        clearInterval(this.gameTimer);
+        clearTimeout(this.moleTimer);
+
+        const timeBonus = this.timeLeft * 10;
+        const accuracyBonus = Math.floor((this.perfectHits / this.hits) * 200);
+        const totalPoints = this.score + timeBonus + accuracyBonus;
+
+        const dialog = gameUtils.UIUtils.createDialog(
+            "Stress Released! 🎉",
+            {
+                "Hits": `${this.hits}/${this.targetHits}`,
+                "Perfect Hits": this.perfectHits,
+                "Time Left": `${this.timeLeft}s`
+            },
+            {
+                "Score": this.score,
+                "Time Bonus": timeBonus,
+                "Accuracy Bonus": accuracyBonus
+            }
+        );
+
+        document.getElementById('active-game-container').appendChild(dialog);
+    }
+
+    endGame(reason) {
+        this.isActive = false;
+        clearInterval(this.gameTimer);
+        clearTimeout(this.moleTimer);
+
+        const dialog = gameUtils.UIUtils.createDialog(
+            "Time's Up!",
+            {
+                "Final Score": this.score,
+                "Hits": `${this.hits}/${this.targetHits}`,
+                "Perfect Hits": this.perfectHits
+            },
+            null,
+            true
+        );
+
+        document.getElementById('active-game-container').appendChild(dialog);
+    }
+
+    cleanup() {
+        super.cleanup();
+        clearInterval(this.gameTimer);
+        clearTimeout(this.moleTimer);
+    }
+}
+
+// Final update to MentalGameFactory
+MentalGameFactory.createGame = function(gameId, level, gameManager) {
+    switch(gameId) {
+        case 'colorMatch':
+            return new ColorMatchGame(level, gameManager);
+        case 'memoryTiles':
+            return new MemoryTilesGame(level, gameManager);
+        case 'puzzle2048':
+            return new Puzzle2048Game(level, gameManager);
+        case 'snake':
+            return new SnakeGame(level, gameManager);
+        case 'whackaMole':
+            return new WhackaMoleGame(level, gameManager);
+        default:
+            throw new Error(`Unknown game: ${gameId}`);
+    }
+};
+
