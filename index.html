@@ -58,7 +58,7 @@
     <!-- Modals -->
     <div id="level-up-modal" class="modal">
         <div class="modal-content">
-            <h2>Level Up!</h2>
+            <h2>🎉 Level Up!</h2>
             <p>Congratulations! You've reached level <span id="new-level"></span></p>
             <div id="unlocked-content"></div>
             <button onclick="closeModal('level-up-modal')">Continue</button>
@@ -66,11 +66,15 @@
     </div>
 
     <!-- Audio Elements -->
-    <audio id="LevelUpSound" src="audio/level-up.mp4"></audio>
-    <audio id="SuccessSound" src="audio/level-success.mp4"></audio>
-    <audio id="FailSound" src="audio/level-fail.mp4"></audio>
-    <audio id="GoodResultSound" src="audio/good-result.mp4"></audio>
-    <audio id="NewLevelSound" src="audio/open-new-level.mp4"></audio>
+    <audio id="backgroundMusic" loop>
+        <source src="audio/physical_fitness.mp4" type="audio/mp4" data-track="physical">
+        <source src="audio/mental_health.mp4" type="audio/mp4" data-track="mental">
+    </audio>
+    <audio id="LevelUpSound" preload="auto" src="audio/level-up.mp4"></audio>
+    <audio id="SuccessSound" preload="auto" src="audio/level-success.mp4"></audio>
+    <audio id="FailSound" preload="auto" src="audio/level-fail.mp4"></audio>
+    <audio id="GoodResultSound" preload="auto" src="audio/good-result.mp4"></audio>
+    <audio id="NewLevelSound" preload="auto" src="audio/unlock-new-level.mp4"></audio>
 
     <!-- Scripts -->
     <script src="game_utils.js"></script>
@@ -79,3 +83,4 @@
     <script src="main.js"></script>
 </body>
 </html>
+
